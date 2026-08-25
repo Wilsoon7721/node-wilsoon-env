@@ -1,0 +1,79 @@
+{
+  "name": "@wilsoon/env",
+  "version": "0.1.0",
+  "description": "End-to-end encrypted environment variables, synced through a storage provider of your choosing",
+  "keywords": [
+    "dotenv",
+    "env",
+    "secrets",
+    "encryption",
+    "cli",
+    "s3"
+  ],
+  "bugs": {
+    "url": "https://github.com/Wilsoon7721/wilsoon-env/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wilsoon7721/wilsoon-env.git"
+  },
+  "license": "MIT",
+  "author": "Wilson Oon",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "bin": {
+    "wilsoon-env": "./cli/env.js"
+  },
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./supabase": "./providers/supabase.js",
+    "./mongodb": "./providers/mongodb.js",
+    "./aws": "./providers/aws-sm.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cli",
+    "core",
+    "providers",
+    "auth",
+    "SPEC.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "vitest run",
+    "prepublishOnly": "npm test",
+    "lint": "eslint --fix . && prettier --write ."
+  },
+  "dependencies": {
+    "@wilsoon/eslint-config": "^0.2.1",
+    "hash-wasm": "^4.12.0"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3",
+    "@supabase/supabase-js": "^2",
+    "mongodb": "^6"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-secrets-manager": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}
