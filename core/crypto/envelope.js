@@ -2,10 +2,10 @@ import { createCipheriv, createDecipheriv, diffieHellman, generateKeyPairSync, h
 import { keyIdOf, privateFromRaw, publicFromRaw, publicOf, rawPublic } from './identity.js';
 import { DEK_LEN, KEYID_LEN, MAX_SLOTS, NONCE_LEN, PAYLOAD_HEADER_LEN, SLOT_LEN, TAG_LEN, X25519_LEN, bodyAad, packPayloadHeader, slotAad, unpackPayloadHeader } from './header.js';
 
-// Envelope encryption: one random key encrypts the file, and that key is wrapped once per recipient.
+// Envelope encryption: one random key encrypts the file, and that key is wrapped once per recipient
 const WRAP_INFO = Buffer.from('wilsoon-env/v1/wrap', 'ascii');
 
-// Derive a wrapping key from an X25519 exchange.
+// Derive a wrapping key from an X25519 exchange
 function wrapKey(shared, ephemeralPublicRaw, recipientPublicRaw) {
   const info = Buffer.concat([WRAP_INFO, ephemeralPublicRaw, recipientPublicRaw]);
   return Buffer.from(hkdfSync('sha256', shared, Buffer.alloc(0), info, 32));
@@ -58,6 +58,16 @@ export function seal({ plaintext, recipients, project, name, version }) {
   const ciphertext = Buffer.concat([bodyCipher.update(body), bodyCipher.final()]);
 
   return Buffer.concat([header, ...slots, bodyNonce, bodyCipher.getAuthTag(), ciphertext]);
+}
+
+/** The keyids a stored blob was sealed for. Lets push notice a recipient list that grew. */
+export function recipientsOf(blob) {
+  const { slots } = unpackPayloadHeader(blob);
+
+  return Array.from({ length: slots }, (_, i) => {
+    const at = PAYLOAD_HEADER_LEN + i * SLOT_LEN;
+    return Buffer.from(blob.subarray(at, at + KEYID_LEN));
+  });
 }
 
 /**

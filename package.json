@@ -51,10 +51,10 @@
   "scripts": {
     "test": "vitest run",
     "prepublishOnly": "npm test",
-    "lint": "eslint --fix . && prettier --write ."
+    "lint": "wlint"
   },
   "dependencies": {
-    "@wilsoon/eslint-config": "^0.2.1",
+    "@wilsoon/eslint-config": "^0.3.3",
     "hash-wasm": "^4.12.0"
   },
   "peerDependencies": {
@@ -75,5 +75,8 @@
   },
   "devDependencies": {
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "@wilsoon/eslint-config@*": true
   }
 }

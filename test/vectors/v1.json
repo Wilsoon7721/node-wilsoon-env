@@ -1,0 +1,20 @@
+{
+  "note": "Frozen at format v1. If these stop opening, the on-disk format changed and every existing vault broke.",
+  "kdf": {
+    "id": 1,
+    "log2m": 10,
+    "t": 1,
+    "p": 1
+  },
+  "context": {
+    "project": "vectors",
+    "name": ".env.production",
+    "version": 42
+  },
+  "passphrase": "vector passphrase",
+  "plaintext": "DATABASE_URL=postgres://vector/db\nAPI_KEY=abc123\n",
+  "privateRaw": "78642bb5a63c04658287a9de18666b7b67347c205846e124af3d7eb65d230963",
+  "secondPrivateRaw": "90866fe520e1935379d933ef685c0f7af0d69c1045a44075e9f1d0c6b80ece64",
+  "identityBlob": "V0VOVgEBAQoBAQAAZ5qG9URJWyqGgF4AqU2FmRhoYV9tMnXL8LiMTBZnXoqth3EoCgj3q/3nVjmXuKlgh4kNFrJxzFays0XHk4BnE4ePCCG4N2B9J051pA==",
+  "payloadBlob": "V0VOVgECAQIqAAAAAAAAALsfGF2jCW4mePoOYNn05i14VpCmaV5HEDm3TF2GtKBUV21NiEeerENe/vBT7k5FxzAVFPmnbgMMD/D4VlATIfZq4ws4y70g2YN6gvbEZWkno7dx6gzxSsTFaUz0VXaIiF5XOSv+T+CAz0Ew9isd9rDdXMgbW7SfvWFUKRQt9PN9THdDfRWQVUl0Cx0J9HND3nQwKyzS95SGNHB/YF/7RKyVj2E/UoetZGua5aJrVmCn2+xdVviDSGYBPdrEBeqE3De32WY+3BCF2Srn0RINfQAlKeAyZOypHVSTIzsvSY4gQVTu0Gd/69r9CRAPzWU5DK7ah5plGwidznZUc8tsa/UDTgncxJAV6Cr9dmvGxHok6Tn+68A="
+}
