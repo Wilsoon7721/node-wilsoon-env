@@ -1,14 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { CONFIG_FILENAMES, findConfig } from '../../core/config.js';
+import { CONFIG_FILENAMES, findConfig, loadConfig } from '../../core/config.js';
 import { KIND_IDENTITY, resolveProvider } from '../../core/provider.js';
 import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { IDENTITY_NAME } from '../../core/session.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
 import { cyan, dim } from '../lib/format.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
-import { newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { confirm, newPassphrase, requireInteractive } from '../lib/prompt.js';
 
 const GITIGNORE_ENTRIES = ['.env', '.env.*', '!.env.example', '!.env.*.example', '.wilsoon-store/'];
 
@@ -43,13 +43,55 @@ export async function setup(args) {
     return 1;
   }
 
-  const project = args.flags.project ?? path.basename(cwd);
-  const providerName = args.flags.provider ?? 'local';
+  // An existing config is a starting point, not something to discard: pointing at
+  // your own bucket means writing options by hand before setup ever runs.
+  const prior = existing ? (await loadConfig(cwd))?.config : null;
+
+  const project = args.flags.project ?? prior?.project ?? path.basename(cwd);
+  const providerName = args.flags.provider ?? prior?.provider ?? 'local';
+
+  const options = { ...(prior?.options ?? {}) };
+  for (const [flag, key] of [
+    ['path', 'path'],
+    ['bucket', 'bucket'],
+    ['endpoint', 'endpoint'],
+    ['region', 'region'],
+    ['prefix', 'prefix'],
+    ['profile', 'profile']
+  ]) {
+    if (typeof args.flags[flag] === 'string') options[key] = args.flags[flag];
+  }
 
   heading(`Setting up ${cyan(project)}`);
   field('Provider', providerName);
   field('Directory', cwd);
   console.log('');
+
+  const config = {
+    $schema: 'https://wilsoon.dev/schema/env.config.v1.json',
+    project,
+    provider: providerName,
+    options,
+    include: prior?.include ?? DEFAULT_INCLUDE,
+    exclude: prior?.exclude ?? DEFAULT_EXCLUDE,
+    recipients: []
+  };
+
+  const provider = await resolveProvider(config, cwd);
+  const storedIdentity = await provider.get({ project, kind: KIND_IDENTITY, name: IDENTITY_NAME }).catch(() => null);
+
+  if (storedIdentity && !args.flags.yes) {
+    console.log('');
+    warn(`An identity key is already stored for ${cyan(project)}.`);
+    note('Replacing it makes every secret already pushed permanently unreadable,');
+    note('including for anyone else who pulls this project.');
+    console.log('');
+
+    if (!(await confirm('  Replace it?'))) {
+      note('Nothing was changed.');
+      return 1;
+    }
+  }
 
   note('Your passphrase protects the identity key that unlocks every secret in');
   note('this project. It is never sent anywhere, and it cannot be recovered.');
@@ -60,17 +102,8 @@ export async function setup(args) {
   const { publicRaw, privateRaw } = generateIdentity();
   const pubkey = encodePublic(publicRaw);
 
-  const config = {
-    $schema: 'https://wilsoon.dev/schema/env.config.v1.json',
-    project,
-    provider: providerName,
-    options: args.flags.path ? { path: args.flags.path } : {},
-    include: DEFAULT_INCLUDE,
-    exclude: DEFAULT_EXCLUDE,
-    recipients: [{ name: args.flags.name ?? 'me', keyid: keyIdOf(publicRaw).toString('hex'), pubkey }]
-  };
+  config.recipients = [{ name: args.flags.name ?? 'me', keyid: keyIdOf(publicRaw).toString('hex'), pubkey }];
 
-  const provider = await resolveProvider(config, cwd);
   const blob = await sealIdentity(privateRaw, passphrase);
 
   await provider.put({ project, kind: KIND_IDENTITY, name: IDENTITY_NAME }, blob);

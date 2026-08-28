@@ -54,7 +54,7 @@
     "lint": "wlint"
   },
   "dependencies": {
-    "@wilsoon/eslint-config": "^0.3.3",
+    "@wilsoon/eslint-config": "^0.3.4",
     "hash-wasm": "^4.12.0"
   },
   "peerDependencies": {

@@ -11,7 +11,8 @@ export class ConflictError extends Error {
 }
 
 const BUILTIN = {
-  local: () => import('../providers/local.js')
+  local: () => import('../providers/local.js'),
+  s3: () => import('../providers/s3.js')
 };
 
 const OPTIONAL = {
