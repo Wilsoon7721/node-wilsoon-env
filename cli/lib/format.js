@@ -9,7 +9,7 @@ export const green = wrap(32);
 export const yellow = wrap(33);
 export const cyan = wrap(36);
 
-export const S = enabled ? { ok: '✓', bad: '✗', info: '·', arrow: '→', plus: '+', minus: '-', tilde: '~' } : { ok: 'ok', bad: 'x', info: '-', arrow: '->', plus: '+', minus: '-', tilde: '~' };
+export const S = enabled ? { ok: '✓', bad: '✗', info: '·', arrow: '→', pointer: '❯', plus: '+', minus: '-', tilde: '~' } : { ok: 'ok', bad: 'x', info: '-', arrow: '->', pointer: '>', plus: '+', minus: '-', tilde: '~' };
 
 export function plural(n, one, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
