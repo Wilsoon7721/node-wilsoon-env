@@ -8,7 +8,7 @@ function toRegExp(pattern) {
   return new RegExp(`^${escaped}$`);
 }
 
-function matchesAny(name, patterns) {
+export function matchesAny(name, patterns) {
   return patterns.some((p) => toRegExp(p).test(name));
 }
 

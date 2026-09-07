@@ -205,7 +205,7 @@ describe('provider resolution', () => {
     expect(provider.name).toBe('local');
   });
 
-  it('says an unbuilt provider is unbuilt, rather than blaming a missing driver', async () => await expect(resolveProvider({ provider: 'mongodb', options: {} }, dir)).rejects.toThrow(/not available in this version/));
+  it('validates a provider config before it needs a driver', async () => await expect(resolveProvider({ provider: 'mongodb', options: {} }, dir)).rejects.toThrow(/needs a "uri"/));
 
   it('lists what is available for an unknown provider', async () => await expect(resolveProvider({ provider: 'dropbox', options: {} }, dir)).rejects.toThrow(/Available: local/));
 });

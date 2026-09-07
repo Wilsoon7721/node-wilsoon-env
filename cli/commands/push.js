@@ -2,10 +2,10 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { discover } from '../../core/dotenv.js';
-import { openSession, recipientKeys } from '../../core/session.js';
+import { openSession, recipientKeys, recipientsFor } from '../../core/session.js';
 import { recipientsOf, seal } from '../../core/crypto/envelope.js';
 import { keyIdOf } from '../../core/crypto/identity.js';
-import { ConflictError } from '../../core/provider.js';
+import { ConflictError, WEAK_CAS_WARNING } from '../../core/provider.js';
 import { remember } from '../../core/state.js';
 import { cyan, dim, plural, yellow } from '../lib/format.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
@@ -56,6 +56,8 @@ export async function push(args) {
     return 1;
   }
 
+  if (session.provider.atomicCas === false && !session.provider.singleMachine) warn(WEAK_CAS_WARNING);
+
   let pushed = 0;
   let skipped = 0;
 
@@ -63,14 +65,15 @@ export async function push(args) {
     const plaintext = await readFile(path.join(session.dir, name));
     const current = await session.provider.get(session.envRef(name));
     const version = (current?.version ?? 0n) + 1n;
+    const forFile = recipientsFor(name, recipients);
 
-    const blob = seal({
-      plaintext,
-      recipients: recipients.map((r) => r.publicRaw),
-      project: session.project,
-      name,
-      version
-    });
+    if (!forFile.length) {
+      warn(`${name} - no recipient covers this file, so nobody could decrypt it. Skipped.`);
+      skipped++;
+      continue;
+    }
+
+    const blob = seal({ plaintext, recipients: forFile.map((r) => r.publicRaw), project: session.project, name, version });
 
     try {
       await session.provider.put(session.envRef(name), blob, { ifVersion: current?.version ?? 0n });
@@ -86,7 +89,7 @@ export async function push(args) {
 
     await remember(session.project, name, version);
 
-    ok(`${name} ${dim(`v${version}`)}`);
+    ok(`${name} ${dim(`v${version}`)}${forFile.length < recipients.length ? dim(` (${forFile.length}/${recipients.length} recipients)`) : ''}`);
     pushed++;
   }
 

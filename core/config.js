@@ -6,6 +6,19 @@ import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from './dotenv.js';
 export const CONFIG_FILENAMES = ['wilsoon-env.config.json', 'env.config.json'];
 export const PACKAGE_KEY = 'wilsoon-env';
 
+export const SCHEMA_URL = 'https://wilsoon.dev/schema/env.config.v1.json';
+export const SCHEMA_RELATIVE = './node_modules/@wilsoon/env/schema/env.config.v1.json';
+
+/** Editors resolve a relative $schema against the config file, so a local install gives working autocomplete with nothing published. */
+export async function schemaRef(dir) {
+  try {
+    await readFile(path.join(dir, 'node_modules', '@wilsoon', 'env', 'schema', 'env.config.v1.json'));
+    return SCHEMA_RELATIVE;
+  } catch {
+    return SCHEMA_URL;
+  }
+}
+
 async function readJson(file) {
   try {
     return JSON.parse(await readFile(file, 'utf8'));
@@ -72,14 +85,41 @@ function validate(raw, file) {
 
   for (const [i, r] of recipients.entries()) {
     if (!r || typeof r !== 'object') throw new Error(`${file}: recipients[${i}] must be an object.`);
-
     if (typeof r.pubkey !== 'string' || !r.pubkey) throw new Error(`${file}: recipients[${i}] is missing "pubkey".`);
+    if (r.files !== undefined && (!Array.isArray(r.files) || r.files.some((f) => typeof f !== 'string'))) throw new Error(`${file}: recipients[${i}].files must be an array of filename patterns.`);
+  }
+
+  let auth = raw.auth;
+
+  if (auth !== undefined) {
+    if (!auth || typeof auth !== 'object' || Array.isArray(auth)) throw new Error(`${file}: "auth" must be an object.`);
+    if (auth.type !== 'oidc' && auth.type !== 'supabase') throw new Error(`${file}: "auth.type" must be "oidc" or "supabase" (got ${JSON.stringify(auth.type)}).`);
+
+    if (auth.type === 'supabase' && !auth.issuer) {
+      const url = raw.options?.url ?? process.env.SUPABASE_URL;
+      if (!url) throw new Error(`${file}: "auth.type" is "supabase" but there is no project URL.\n\n  Set options.url, or SUPABASE_URL.\n`);
+      auth = { ...auth, issuer: url };
+    }
+
+    if (typeof auth.issuer !== 'string' || !auth.issuer.trim()) throw new Error(`${file}: "auth" needs an "issuer".`);
+
+    const host = (() => {
+      try {
+        return new URL(auth.issuer);
+      } catch {
+        throw new Error(`${file}: "auth.issuer" is not a valid URL.`);
+      }
+    })();
+
+    const local = host.hostname === 'localhost' || host.hostname === '127.0.0.1' || host.hostname === '[::1]';
+    if (host.protocol !== 'https:' && !local) throw new Error(`${file}: refusing an "auth.issuer" over plain HTTP.`);
   }
 
   return {
     project: project.trim(),
     provider: provider.trim(),
     recipients,
+    ...(auth ? { auth } : {}),
     include: raw.include ?? DEFAULT_INCLUDE,
     exclude: raw.exclude ?? DEFAULT_EXCLUDE,
     options: raw.options ?? {},

@@ -29,9 +29,6 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./supabase": "./providers/supabase.js",
-    "./mongodb": "./providers/mongodb.js",
-    "./aws": "./providers/aws-sm.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -39,7 +36,7 @@
     "cli",
     "core",
     "providers",
-    "auth",
+    "schema",
     "SPEC.md",
     "README.md",
     "LICENSE"
@@ -54,26 +51,19 @@
     "lint": "wlint"
   },
   "dependencies": {
-    "@wilsoon/eslint-config": "^0.3.4",
     "hash-wasm": "^4.12.0"
   },
   "peerDependencies": {
-    "@aws-sdk/client-secrets-manager": "^3",
-    "@supabase/supabase-js": "^2",
-    "mongodb": "^6"
+    "mongodb": ">=6"
   },
   "peerDependenciesMeta": {
-    "@aws-sdk/client-secrets-manager": {
-      "optional": true
-    },
-    "@supabase/supabase-js": {
-      "optional": true
-    },
     "mongodb": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@wilsoon/eslint-config": "^0.3.4",
+    "mongodb": "^7.6.0",
     "vitest": "^4.1.10"
   },
   "allowScripts": {

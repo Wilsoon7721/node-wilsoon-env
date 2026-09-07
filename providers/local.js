@@ -26,6 +26,8 @@ export function create(options = {}, { dir } = {}) {
 
   return {
     name: 'local',
+    atomicCas: false,
+    singleMachine: true,
     describe: () => root,
 
     async get(ref) {

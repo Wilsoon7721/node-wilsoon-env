@@ -1,4 +1,4 @@
-const BOOLEAN = new Set(['force', 'yes', 'help', 'version', 'no-browser', 'quiet']);
+const BOOLEAN = new Set(['force', 'yes', 'help', 'version', 'no-browser', 'quiet', 'no-cache', 'device', 'browser', 'otp']);
 
 export function parseArgs(argv) {
   const flags = {};

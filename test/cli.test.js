@@ -90,8 +90,9 @@ describe('setup', () => {
     const raw = await readFile(loaded.file, 'utf8');
     expect(raw).not.toContain(PASSPHRASE);
 
+    // Addressed by key id, not a shared "default" slot, so two people can use one store.
     const store = createLocal({}, { dir });
-    expect(await store.get({ project: 'demo', kind: 'identity', name: 'default' })).toBeTruthy();
+    expect(await store.get({ project: 'demo', kind: 'identity', name: loaded.config.recipients[0].keyid })).toBeTruthy();
 
     const gitignore = await readFile(path.join(dir, '.gitignore'), 'utf8');
     expect(gitignore).toContain('.env');

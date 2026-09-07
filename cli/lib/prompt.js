@@ -15,7 +15,7 @@ export function requireInteractive(what) {
   if (!isInteractive()) throw new Error(`${what} needs a terminal.\n\n  In CI, set WILSOON_ENV_KEY (and WILSOON_ENV_TOKEN where the provider needs it) instead.\n`);
 }
 
-// Reads without showing. Raw mode is always restored, including on Ctrl+C
+// Reads without showing
 export function password(question) {
   requireInteractive('Entering a passphrase');
 
@@ -86,6 +86,19 @@ export async function newPassphrase({ min = 8 } = {}) {
     }
 
     return first;
+  }
+}
+
+/* Read one visible line - for things that are not secret: an email, a code */
+export async function ask(question) {
+  requireInteractive('This');
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  try {
+    return (await rl.question(question)).trim();
+  } finally {
+    rl.close();
   }
 }
 

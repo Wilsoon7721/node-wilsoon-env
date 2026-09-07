@@ -33,12 +33,12 @@ export function publicOf(privateRaw) {
   return rawPublic(createPublicKey(privateFromRaw(privateRaw)));
 }
 
-// A short handle for a public key, used to pick which slot to try.
+/** A short handle for a public key, used to pick which slot to try. */
 export function keyIdOf(publicRaw) {
   return createHash('sha256').update(publicRaw).digest().subarray(0, KEYID_LEN);
 }
 
-// Using RFC 4648 base32 charset (no padding, no checksum, lowercase)
+/** Using RFC 4648 base32 charset (no padding, no checksum, lowercase) */
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
 const PREFIX = 'wenv1';
 const CHECKSUM_LEN = 4;
@@ -82,31 +82,50 @@ function base32Decode(str) {
   return Buffer.from(out);
 }
 
-// Public key as a copy-pasteable string: wenv1 + base32(key || checksum)
-export function encodePublic(publicRaw) {
-  if (!Buffer.isBuffer(publicRaw) || publicRaw.length !== X25519_LEN) throw new Error(`A public key must be ${X25519_LEN} bytes.`);
+// Keys as copy-pasteable strings: prefix + base32(key || checksum)
+const SECRET_PREFIX = 'wenvsk1';
 
-  const checksum = createHash('sha256').update(publicRaw).digest().subarray(0, CHECKSUM_LEN);
-  return PREFIX + base32Encode(Buffer.concat([publicRaw, checksum]));
+function encodeKey(raw, prefix) {
+  if (!Buffer.isBuffer(raw) || raw.length !== X25519_LEN) throw new Error(`A key must be ${X25519_LEN} bytes.`);
+
+  const checksum = createHash('sha256').update(raw).digest().subarray(0, CHECKSUM_LEN);
+  return prefix + base32Encode(Buffer.concat([raw, checksum]));
 }
 
-export function decodePublic(str) {
+function decodeKey(str, prefix, label) {
   const text = String(str ?? '')
     .trim()
     .toLowerCase();
 
-  if (!text.startsWith(PREFIX)) throw new Error(`Not a wilsoon-env public key (expected it to start with "${PREFIX}").`);
+  if (!text.startsWith(prefix)) throw new Error(`Not a wilsoon-env ${label} (expected it to start with "${prefix}").`);
 
-  const decoded = base32Decode(text.slice(PREFIX.length));
+  const decoded = base32Decode(text.slice(prefix.length));
 
-  if (decoded.length !== X25519_LEN + CHECKSUM_LEN) throw new Error('Public key is the wrong length - it looks truncated, or has extra characters.');
+  if (decoded.length !== X25519_LEN + CHECKSUM_LEN) throw new Error(`The ${label} is the wrong length - it looks truncated, or has extra characters.`);
 
-  const publicRaw = decoded.subarray(0, X25519_LEN);
-  const expected = createHash('sha256').update(publicRaw).digest().subarray(0, CHECKSUM_LEN);
+  const raw = decoded.subarray(0, X25519_LEN);
+  const expected = createHash('sha256').update(raw).digest().subarray(0, CHECKSUM_LEN);
 
-  if (!decoded.subarray(X25519_LEN).equals(expected)) throw new Error('Public key failed its checksum - it was probably copied incompletely.');
+  if (!decoded.subarray(X25519_LEN).equals(expected)) throw new Error(`The ${label} failed its checksum - it was probably copied incompletely.`);
 
-  return publicRaw;
+  return raw;
+}
+
+export function encodePublic(publicRaw) {
+  return encodeKey(publicRaw, PREFIX);
+}
+
+export function decodePublic(str) {
+  return decodeKey(str, PREFIX, 'public key');
+}
+
+/* A private key in text form, for a CI runner that can neither open a browser nor type a passphrase */
+export function encodePrivate(privateRaw) {
+  return encodeKey(privateRaw, SECRET_PREFIX);
+}
+
+export function decodePrivate(str) {
+  return decodeKey(str, SECRET_PREFIX, 'private key');
 }
 
 /**

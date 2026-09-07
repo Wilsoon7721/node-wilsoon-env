@@ -1,10 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { CONFIG_FILENAMES, findConfig, loadConfig } from '../../core/config.js';
+import { CONFIG_FILENAMES, findConfig, loadConfig, schemaRef } from '../../core/config.js';
 import { KIND_IDENTITY, resolveProvider } from '../../core/provider.js';
 import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
-import { IDENTITY_NAME } from '../../core/session.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
 import { cyan, dim } from '../lib/format.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
@@ -43,10 +42,8 @@ export async function setup(args) {
     return 1;
   }
 
-  // An existing config is a starting point, not something to discard: pointing at
-  // your own bucket means writing options by hand before setup ever runs.
+  // Existing config?
   const prior = existing ? (await loadConfig(cwd))?.config : null;
-
   const project = args.flags.project ?? prior?.project ?? path.basename(cwd);
   const providerName = args.flags.provider ?? prior?.provider ?? 'local';
 
@@ -68,23 +65,27 @@ export async function setup(args) {
   console.log('');
 
   const config = {
-    $schema: 'https://wilsoon.dev/schema/env.config.v1.json',
+    $schema: await schemaRef(cwd),
     project,
     provider: providerName,
     options,
+    ...(prior?.auth ? { auth: prior.auth } : {}),
+    ...(prior?.kdf ? { kdf: prior.kdf } : {}),
     include: prior?.include ?? DEFAULT_INCLUDE,
     exclude: prior?.exclude ?? DEFAULT_EXCLUDE,
     recipients: []
   };
 
   const provider = await resolveProvider(config, cwd);
-  const storedIdentity = await provider.get({ project, kind: KIND_IDENTITY, name: IDENTITY_NAME }).catch(() => null);
+  const me = args.flags.name ?? 'me';
+  const previous = prior?.recipients?.find((r) => r.name === me);
+  const storedIdentity = previous?.keyid ? await provider.get({ project, kind: KIND_IDENTITY, name: previous.keyid }).catch(() => null) : null;
 
   if (storedIdentity && !args.flags.yes) {
     console.log('');
-    warn(`An identity key is already stored for ${cyan(project)}.`);
-    note('Replacing it makes every secret already pushed permanently unreadable,');
-    note('including for anyone else who pulls this project.');
+    warn(`An identity key is already stored for ${cyan(me)} in ${cyan(project)}.`);
+    note('Replacing it makes everything already sealed to that key unreadable by you,');
+    note('until someone who can still read it pushes again.');
     console.log('');
 
     if (!(await confirm('  Replace it?'))) {
@@ -101,12 +102,13 @@ export async function setup(args) {
 
   const { publicRaw, privateRaw } = generateIdentity();
   const pubkey = encodePublic(publicRaw);
-
-  config.recipients = [{ name: args.flags.name ?? 'me', keyid: keyIdOf(publicRaw).toString('hex'), pubkey }];
+  const keyid = keyIdOf(publicRaw).toString('hex');
+  config.recipients = [...(prior?.recipients ?? []).filter((r) => r.name !== me), { name: me, keyid, pubkey }];
 
   const blob = await sealIdentity(privateRaw, passphrase);
 
-  await provider.put({ project, kind: KIND_IDENTITY, name: IDENTITY_NAME }, blob);
+  await provider.put({ project, kind: KIND_IDENTITY, name: keyid }, blob);
+  if (previous?.keyid && previous.keyid !== keyid) await provider.remove({ project, kind: KIND_IDENTITY, name: previous.keyid }).catch(() => {});
 
   const configFile = path.join(cwd, CONFIG_FILENAMES[0]);
   await writeFile(configFile, JSON.stringify(config, null, 2) + '\n');

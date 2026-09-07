@@ -53,7 +53,7 @@ export async function pull(args) {
   heading(`Pulling ${plural(wanted.length, 'file')} from ${cyan(session.provider.describe?.() ?? session.config.provider)}`);
 
   const fromEnv = process.env.WILSOON_ENV_PASSPHRASE;
-  const { privateRaw } = await unlockIdentity(session, fromEnv ? async () => fromEnv : () => password('  Passphrase: '));
+  const { privateRaw } = await unlockIdentity(session, fromEnv ? async () => fromEnv : () => password('  Passphrase: '), { as: args.flags.as, cache: !args.flags['no-cache'] });
 
   console.log('');
 

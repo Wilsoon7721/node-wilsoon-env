@@ -76,6 +76,7 @@ export function create(options = {}, { dir } = {}) {
 
   return {
     name: 's3',
+    atomicCas: true,
     describe: () => `${options.endpoint ? base.host : `s3.${region}.amazonaws.com`}/${bucket}${prefix ? `/${prefix.slice(0, -1)}` : ''}`,
 
     async get(ref) {
