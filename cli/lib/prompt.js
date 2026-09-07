@@ -12,7 +12,7 @@ export function isInteractive() {
 
 // Interactivity checker for CIs
 export function requireInteractive(what) {
-  if (!isInteractive()) throw new Error(`${what} needs a terminal.\n\n  In CI, set WILSOON_ENV_KEY (and WILSOON_ENV_TOKEN where the provider needs it) instead.\n`);
+  if (!isInteractive()) throw new Error(`${what} needs a terminal.\n\n  In CI, set WILSOON_ENV_KEY (and whatever credentials your provider needs) instead.\n`);
 }
 
 // Reads without showing

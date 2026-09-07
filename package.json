@@ -11,12 +11,13 @@
     "s3"
   ],
   "bugs": {
-    "url": "https://github.com/Wilsoon7721/wilsoon-env/issues"
+    "url": "https://github.com/Wilsoon7721/node-wilsoon-env/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Wilsoon7721/wilsoon-env.git"
+    "url": "git+https://github.com/Wilsoon7721/node-wilsoon-env.git"
   },
+  "homepage": "https://github.com/Wilsoon7721/node-wilsoon-env#readme",
   "license": "MIT",
   "author": "Wilson Oon",
   "type": "module",

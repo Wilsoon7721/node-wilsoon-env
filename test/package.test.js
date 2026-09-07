@@ -61,6 +61,16 @@ describe('package manifest', () => {
 
   it('keeps the runtime dependency list to what the crypto needs', () => expect(Object.keys(pkg.dependencies)).toEqual(['hash-wasm']));
 
+  it('points every url at one repository, which npm provenance requires', () => {
+    // Provenance attests "built from this repo", so a stale repository url is
+    // not cosmetic: npm refuses the publish. These three drifted apart once.
+    const slug = pkg.repository.url.match(/github\.com\/([^/]+\/[^/.]+)/)?.[1];
+
+    expect(slug, `no repo slug in ${pkg.repository.url}`).toBeTruthy();
+    expect(pkg.bugs.url).toContain(slug);
+    expect(pkg.homepage).toContain(slug);
+  });
+
   it('exposes a single bin, which is what makes npx @wilsoon/env work', () => {
     // npx resolves a package to its only bin. A second entry makes the bare
     // `npx @wilsoon/env` ambiguous, and every help string in the CLI uses it.

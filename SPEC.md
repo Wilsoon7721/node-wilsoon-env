@@ -37,10 +37,15 @@ their public key — no secret is re-encrypted.
 Addressed by `(owner, kind, name)`. On a bucket that is a path; in SQL it is a
 primary key; in Mongo it is a compound index. The provider decides, not the format.
 
-| kind       | name              | contents                          |
-|------------|-------------------|-----------------------------------|
-| `identity` | `default`         | identity blob (§4)                |
-| `env`      | `.env.production` | payload blob (§5), one per file   |
+| kind       | name              | contents                        |
+| ---------- | ----------------- | ------------------------------- |
+| `identity` | `<keyid hex>`     | identity blob (§4), one per key |
+| `env`      | `.env.production` | payload blob (§5), one per file |
+
+Identity objects are named by the key id (§5) of the key they hold, so two people
+sharing one store cannot overwrite each other. A blob still named `default`, from
+before that rule, keeps opening: readers list what the store reports rather than
+expecting a particular name.
 
 Filenames are stored **verbatim**. `.env.production` and `.env.prod` are different
 objects. No normalisation into canonical environment names — that mapping is lossy
@@ -118,7 +123,7 @@ ones on next push.
 
 ### Whole-file, not per-value
 
-One blob, one key, one tag. Key *names* stay hidden — a store learns nothing but
+One blob, one key, one tag. Key _names_ stay hidden — a store learns nothing but
 size and mtime. It also makes partial decryption structurally impossible: there
 are no independently encrypted fields to succeed against.
 
@@ -130,11 +135,25 @@ X25519 ephemeral -> HKDF-SHA256 -> AES-256-GCM over the DEK.
 
 ### AAD binds context
 
-Body AAD is:
+Both AADs length-prefix their variable-length fields — `uint16le` length, then
+UTF-8 bytes — so no pair of `(project, name)` values can concatenate to the same
+bytes as another. Concatenating them raw would let `(ab, c)` and `(a, bc)`
+authenticate interchangeably.
+
+Body AAD:
 
 ```
-"WENV" | format | kind | version | project | name
+"WENV" | format | kind=2 | version:u64le | lp(project) | lp(name)
 ```
+
+Slot AAD, which binds each wrapped DEK to the recipient it was wrapped for:
+
+```
+"WENVSLOT" | format | version:u64le | keyid | lp(project) | lp(name)
+```
+
+The distinct `"WENVSLOT"` prefix domain-separates the two, so a slot can never be
+verified as a body or the reverse.
 
 This is what stops a `.env.local` blob being replayed as `.env.production`, and
 what makes rollback detectable — the version is authenticated, so an attacker
@@ -164,7 +183,7 @@ returns:
 const d = createDecipheriv('aes-256-gcm', key, nonce);
 d.setAAD(aad);
 d.setAuthTag(tag);
-const out = Buffer.concat([d.update(ct), d.final()]);   // final() throws on failure
+const out = Buffer.concat([d.update(ct), d.final()]); // final() throws on failure
 ```
 
 Writing `update()` output to a file before `final()` is the one way to leak
@@ -188,12 +207,16 @@ to the owner (RLS, IAM, bucket policy).
 ## 8. CI
 
 CI can neither open a browser nor type a passphrase, so it never touches the
-user's identity key. Two variables:
+user's identity key. The two layers of §1 stay separate here too:
 
 ```
-WILSOON_ENV_TOKEN   auth: may you fetch these bytes
-WILSOON_ENV_KEY     custody: a scoped recipient private key
+ACCESS   whatever credentials the provider names   AWS_*, SUPABASE_*, CLOUDFLARE_*, ...
+CUSTODY  WILSOON_ENV_KEY                           a scoped recipient private key
 ```
+
+There is deliberately no single `WILSOON_ENV_*` credential for access: each
+provider already has a documented, well-known way to be given credentials, and
+re-badging them would only add a translation layer to get wrong.
 
 **This was originally specified as an exported DEK, which cannot work.** §5 mints
 a fresh DEK on every push, so an exported one would be dead the moment anybody
