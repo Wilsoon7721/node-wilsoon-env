@@ -48,6 +48,7 @@ function run(file, args, input) {
 
     child.on('close', (code) => {
       if (failed) return;
+
       resolve(code === 0 ? out.trim() : null);
     });
 

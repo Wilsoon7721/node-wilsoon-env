@@ -98,6 +98,7 @@ function validate(raw, file) {
     if (auth.type === 'supabase' && !auth.issuer) {
       const url = raw.options?.url ?? process.env.SUPABASE_URL;
       if (!url) throw new Error(`${file}: "auth.type" is "supabase" but there is no project URL.\n\n  Set options.url, or SUPABASE_URL.\n`);
+
       auth = { ...auth, issuer: url };
     }
 

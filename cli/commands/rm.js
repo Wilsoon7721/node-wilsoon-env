@@ -55,10 +55,7 @@ export async function rm(args) {
 
   outcome({
     ok: `${plural(removed, 'file')} removed from the store`,
-    next: [
-      'Local copies are untouched - delete them yourself if you meant to',
-      `A later ${command('push')} will store them again if the files are still here`
-    ]
+    next: ['Local copies are untouched - delete them yourself if you meant to', `A later ${command('push')} will store them again if the files are still here`]
   });
 
   return 0;

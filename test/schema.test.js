@@ -121,7 +121,5 @@ describe('$schema resolution', () => {
     }
   });
 
-  it('agrees with the $id the schema declares', () => {
-    expect(schema.$id).toBe(SCHEMA_URL);
-  });
+  it('agrees with the $id the schema declares', () => expect(schema.$id).toBe(SCHEMA_URL));
 });

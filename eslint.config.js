@@ -1,6 +1,6 @@
 import wilsoonConfig from '@wilsoon/eslint-config/eslint';
 
 export default [
-  ...wilsoonConfig,
+  ...wilsoonConfig
   // Add your own rule overrides here - they take precedence.
 ];

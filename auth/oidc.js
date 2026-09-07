@@ -95,8 +95,7 @@ export async function listen({ timeoutMs = 5 * 60 * 1000, state } = {}) {
 }
 
 export function openBrowser(url) {
-  const [file, args] =
-    process.platform === 'win32' ? ['rundll32', ['url.dll,FileProtocolHandler', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
+  const [file, args] = process.platform === 'win32' ? ['rundll32', ['url.dll,FileProtocolHandler', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
 
   try {
     const child = spawn(file, args, { detached: true, stdio: 'ignore' });
@@ -114,9 +113,7 @@ export async function endpoints(auth) {
 
   if (!issuer) throw new Error('The oidc auth strategy needs an "issuer".');
 
-  if (auth.authorizationEndpoint && auth.tokenEndpoint) {
-    return { issuer, authorization: auth.authorizationEndpoint, token: auth.tokenEndpoint, userinfo: auth.userinfoEndpoint, device: auth.deviceEndpoint };
-  }
+  if (auth.authorizationEndpoint && auth.tokenEndpoint) return { issuer, authorization: auth.authorizationEndpoint, token: auth.tokenEndpoint, userinfo: auth.userinfoEndpoint, device: auth.deviceEndpoint };
 
   let document = null;
 
@@ -125,7 +122,7 @@ export async function endpoints(auth) {
     if (response.ok) document = await response.json();
   } catch {}
 
-  if (!document?.authorization_endpoint || !document?.token_endpoint) {
+  if (!document?.authorization_endpoint || !document?.token_endpoint)
     throw new Error(
       [
         `Could not discover OIDC endpoints for ${issuer}.`,
@@ -141,7 +138,6 @@ export async function endpoints(auth) {
         ''
       ].join('\n')
     );
-  }
 
   return {
     issuer,
@@ -251,9 +247,7 @@ export async function supportsDevice(auth) {
 export async function deviceAuthorize(auth, { open = openBrowser, onPrompt, sleep = wait } = {}) {
   const found = await endpoints(auth);
 
-  if (!found.device) {
-    throw new Error(`${found.issuer} does not offer the device grant.\n\n  Sign in with a browser on this machine instead, or set "deviceEndpoint" in your auth config.\n`);
-  }
+  if (!found.device) throw new Error(`${found.issuer} does not offer the device grant.\n\n  Sign in with a browser on this machine instead, or set "deviceEndpoint" in your auth config.\n`);
 
   const clientId = auth.clientId ?? 'wilsoon-env';
 
@@ -274,28 +268,20 @@ export async function deviceAuthorize(auth, { open = openBrowser, onPrompt, slee
 
     const polled = await postFormRaw(found.token, { grant_type: DEVICE_GRANT, device_code, client_id: clientId });
 
-    if (polled.ok && polled.body?.access_token) {
-      return { ...polled.body, opened, issuer: found.issuer, ...describeToken(polled.body.id_token ?? polled.body.access_token) };
-    }
+    if (polled.ok && polled.body?.access_token) return { ...polled.body, opened, issuer: found.issuer, ...describeToken(polled.body.id_token ?? polled.body.access_token) };
 
     const error = polled.body?.error;
 
     if (error === 'authorization_pending') {
       // Nothing yet
-    } else if (error === 'slow_down') {
-      // Adopt the interval the server returns, rather than guessing at one.
-      every = Math.max(every + 5, Number(polled.body?.interval) || 0);
-    } else if (error === 'expired_token') {
-      throw new Error('That sign-in request expired before it was approved.\n\n  Run login again to get a fresh code.\n');
-    } else if (error === 'access_denied') {
-      throw new Error('The sign-in was refused.');
-    } else {
+    } else if (error === 'slow_down') every = Math.max(every + 5, Number(polled.body?.interval) || 0);
+    else if (error === 'expired_token') throw new Error('That sign-in request expired before it was approved.\n\n  Run login again to get a fresh code.\n');
+    else if (error === 'access_denied') throw new Error('The sign-in was refused.');
+    else {
       throw refusal(polled, 'the device exchange');
     }
 
-    if (Date.now() > ceiling) {
-      throw new Error('Gave up waiting for the identity provider.\n\n  It never reported the request as approved, refused or expired. Run login again.\n');
-    }
+    if (Date.now() > ceiling) throw new Error('Gave up waiting for the identity provider.\n\n  It never reported the request as approved, refused or expired. Run login again.\n');
   }
 }
 

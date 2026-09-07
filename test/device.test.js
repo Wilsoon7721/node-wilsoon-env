@@ -30,14 +30,13 @@ beforeAll(async () => {
     req.on('end', () => {
       const json = (value, status = 200) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(value));
 
-      if (path === '/.well-known/openid-configuration') {
+      if (path === '/.well-known/openid-configuration')
         return json({
           issuer: url,
           authorization_endpoint: `${url}/authorize`,
           token_endpoint: `${url}/api/token`,
           ...(script.noDevice ? {} : { device_authorization_endpoint: `${url}/api/device/code` })
         });
-      }
 
       if (path === '/api/device/code') {
         started = Object.fromEntries(new URLSearchParams(body));
@@ -220,7 +219,10 @@ describe('device grant', () => {
       eventually approves.
     */
     script.expiresIn = 1;
-    script.responses = [{ status: 400, body: { error: 'authorization_pending' } }, { status: 400, body: { error: 'authorization_pending' } }];
+    script.responses = [
+      { status: 400, body: { error: 'authorization_pending' } },
+      { status: 400, body: { error: 'authorization_pending' } }
+    ];
 
     const result = await deviceAuthorize(auth(), { open: () => false, sleep });
 

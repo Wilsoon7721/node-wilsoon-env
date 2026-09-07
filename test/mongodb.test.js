@@ -92,7 +92,12 @@ vi.mock('mongodb', () => ({
     }
     db(name) {
       calls.push({ op: 'db', name });
-      return { collection: (c) => { calls.push({ op: 'collection', name: c }); return new FakeCollection(); } };
+      return {
+        collection: (c) => {
+          calls.push({ op: 'collection', name: c });
+          return new FakeCollection();
+        }
+      };
     }
     async close() {
       closed = true;
@@ -233,7 +238,5 @@ describe('mongodb provider', () => {
     expect(calls.filter((c) => c.op === 'connect')).toHaveLength(1);
   });
 
-  it('refuses a ref that would escape the collection', async () => {
-    await expect(create(options).get({ project: 'demo', kind: 'env', name: '../escape' })).rejects.toThrow(/escape the store/);
-  });
+  it('refuses a ref that would escape the collection', async () => await expect(create(options).get({ project: 'demo', kind: 'env', name: '../escape' })).rejects.toThrow(/escape the store/));
 });

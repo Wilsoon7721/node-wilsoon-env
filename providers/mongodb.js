@@ -36,7 +36,7 @@ export function create(options = {}, { dir } = {}) {
   let ready = null;
 
   async function collection() {
-    if (!ready) {
+    if (!ready)
       ready = (async () => {
         let driver;
         try {
@@ -45,6 +45,7 @@ export function create(options = {}, { dir } = {}) {
           const missing = err?.code === 'ERR_MODULE_NOT_FOUND' || /Cannot find (package|module) 'mongodb'|Could not resolve "mongodb"/.test(String(err?.message));
 
           if (missing) throw new Error('The "mongodb" provider needs its driver installed:\n\n  npm i mongodb\n');
+
           throw err;
         }
 
@@ -57,7 +58,6 @@ export function create(options = {}, { dir } = {}) {
 
         return col;
       })();
-    }
 
     return await ready;
   }
@@ -91,7 +91,7 @@ export function create(options = {}, { dir } = {}) {
         return { version };
       }
 
-      if (BigInt(ifVersion) === 0n) {
+      if (BigInt(ifVersion) === 0n)
         try {
           await col.insertOne(document);
           return { version };
@@ -101,9 +101,9 @@ export function create(options = {}, { dir } = {}) {
             const current = await this.get(ref);
             throw new ConflictError(0n, current?.version ?? 0n);
           }
+
           throw err;
         }
-      }
 
       const result = await col.updateOne({ ...filter, version: Number(ifVersion) }, { $set: document });
 
@@ -119,9 +119,7 @@ export function create(options = {}, { dir } = {}) {
       const col = await collection();
       const found = await col.find({ project }, { projection: { kind: 1, name: 1, version: 1 } }).toArray();
 
-      return found
-        .map((d) => ({ kind: d.kind, name: d.name, version: BigInt(d.version ?? 0) }))
-        .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+      return found.map((d) => ({ kind: d.kind, name: d.name, version: BigInt(d.version ?? 0) })).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
     },
 
     async remove(ref) {

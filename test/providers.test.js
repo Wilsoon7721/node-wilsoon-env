@@ -43,9 +43,7 @@ describe('cloudflare kv', () => {
           return new Response('{"success":true}', { status: 200 });
         }
 
-        if (init.method === 'DELETE') {
-          return new Response('{"success":true}', { status: store.delete(key) ? 200 : 404 });
-        }
+        if (init.method === 'DELETE') return new Response('{"success":true}', { status: store.delete(key) ? 200 : 404 });
       }
 
       if (u.pathname.endsWith('/keys')) {
@@ -70,9 +68,7 @@ describe('cloudflare kv', () => {
     expect(requests[0].headers.authorization).toBe('Bearer tok');
   });
 
-  it('returns null for a key that is not there', async () => {
-    expect(await createKv(options).get(ref)).toBe(null);
-  });
+  it('returns null for a key that is not there', async () => expect(await createKv(options).get(ref)).toBe(null));
 
   it('round-trips a blob', async () => {
     const kv = createKv(options);
@@ -126,8 +122,7 @@ describe('aws secrets manager', () => {
 
   let secrets;
 
-  const respond = (payload, status = 200, errorType) =>
-    new Response(JSON.stringify(payload), { status, headers: errorType ? { 'x-amzn-errortype': `${errorType}:` } : {} });
+  const respond = (payload, status = 200, errorType) => new Response(JSON.stringify(payload), { status, headers: errorType ? { 'x-amzn-errortype': `${errorType}:` } : {} });
 
   beforeEach(() => {
     secrets = new Map();
@@ -145,6 +140,7 @@ describe('aws secrets manager', () => {
 
       if (action === 'PutSecretValue') {
         if (!secrets.has(payload.SecretId)) return respond({ message: 'not found' }, 400, 'ResourceNotFoundException');
+
         secrets.set(payload.SecretId, payload.SecretBinary);
         return respond({});
       }
@@ -154,13 +150,9 @@ describe('aws secrets manager', () => {
         return respond({});
       }
 
-      if (action === 'ListSecrets') {
-        return respond({ SecretList: [...secrets.keys()].map((Name) => ({ Name })) });
-      }
+      if (action === 'ListSecrets') return respond({ SecretList: [...secrets.keys()].map((Name) => ({ Name })) });
 
-      if (action === 'DeleteSecret') {
-        return secrets.delete(payload.SecretId) ? respond({}) : respond({ message: 'not found' }, 400, 'ResourceNotFoundException');
-      }
+      if (action === 'DeleteSecret') return secrets.delete(payload.SecretId) ? respond({}) : respond({ message: 'not found' }, 400, 'ResourceNotFoundException');
 
       return respond({ message: 'bad' }, 400, 'ValidationException');
     });
@@ -173,9 +165,7 @@ describe('aws secrets manager', () => {
     expect(requests[0].headers['x-amz-target']).toBe('secretsmanager.GetSecretValue');
   });
 
-  it('returns null for a secret that does not exist', async () => {
-    expect(await createSm(options).get(ref)).toBe(null);
-  });
+  it('returns null for a secret that does not exist', async () => expect(await createSm(options).get(ref)).toBe(null));
 
   it('creates on first write and updates after', async () => {
     const sm = createSm(options);
@@ -262,9 +252,7 @@ describe('registration', () => {
     expect(db.name).toBe('supabase');
   });
 
-  it('checks mongodb config before reaching for the driver', async () => {
-    await expect(resolveProvider({ provider: 'mongodb', options: {} }, '.')).rejects.toThrow(/needs a "uri"/);
-  });
+  it('checks mongodb config before reaching for the driver', async () => await expect(resolveProvider({ provider: 'mongodb', options: {} }, '.')).rejects.toThrow(/needs a "uri"/));
 
   /*
     This used to assert the "npm i mongodb" message by exercising the real
@@ -285,7 +273,5 @@ describe('registration', () => {
     expect(typeof db.close).toBe('function');
   });
 
-  it('lists every provider when the name is unknown', async () => {
-    await expect(resolveProvider({ provider: 'nope', options: {} }, '.')).rejects.toThrow(/local, s3, supabase, kv, aws, mongodb/);
-  });
+  it('lists every provider when the name is unknown', async () => await expect(resolveProvider({ provider: 'nope', options: {} }, '.')).rejects.toThrow(/local, s3, supabase, kv, aws, mongodb/));
 });

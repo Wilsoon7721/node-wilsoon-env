@@ -8,7 +8,7 @@ function endpointsFor(auth) {
   const url = String(auth.url ?? auth.issuer ?? '').replace(/\/+$/, '');
 
   if (!url) throw new Error('The supabase auth strategy needs the project URL.');
-  if (!auth.anonKey) throw new Error('The supabase auth strategy needs the project\'s anon key.\n\n  It is public by design - set it in options.anonKey or SUPABASE_ANON_KEY.\n');
+  if (!auth.anonKey) throw new Error("The supabase auth strategy needs the project's anon key.\n\n  It is public by design - set it in options.anonKey or SUPABASE_ANON_KEY.\n");
 
   return { url, base: `${url}/auth/v1`, anonKey: auth.anonKey };
 }

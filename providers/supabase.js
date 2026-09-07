@@ -29,13 +29,10 @@ function versionOf(blob, kind) {
 function failure(status, body, what) {
   const message = body?.message ?? body?.hint ?? '';
 
-  if (body?.code === 'PGRST106') {
-    return new Error(`Supabase does not expose that schema, so ${what} cannot work.\n\n  Add it in the dashboard under Settings > Data API > Exposed schemas.\n${body.hint ? `\n  ${body.hint}\n` : ''}`);
-  }
+  if (body?.code === 'PGRST106') return new Error(`Supabase does not expose that schema, so ${what} cannot work.\n\n  Add it in the dashboard under Settings > Data API > Exposed schemas.\n${body.hint ? `\n  ${body.hint}\n` : ''}`);
 
-  if (status === 401 || status === 403) {
+  if (status === 401 || status === 403)
     return new Error(`Supabase refused ${what} (HTTP ${status}).\n\n  Either you are not signed in, or row level security is hiding these rows.\n  Run "npx @wilsoon/env login" if this project uses oidc auth.\n${message ? `\n  ${message}\n` : ''}`);
-  }
 
   if (status === 404) return new Error(`Supabase returned 404 for ${what}. Check the table name and that PostgREST exposes it.${message ? ` ${message}` : ''}`);
 
@@ -62,9 +59,7 @@ export function create(options = {}, { dir } = {}) {
     if (!serviceKey && auth) {
       bearer = await accessTokenFor(auth.type === 'supabase' ? { ...auth, url, anonKey } : auth);
 
-      if (!bearer) {
-        throw new Error(`Not signed in to ${auth.issuer}.\n\n  Run "npx @wilsoon/env login" first.\n`);
-      }
+      if (!bearer) throw new Error(`Not signed in to ${auth.issuer}.\n\n  Run "npx @wilsoon/env login" first.\n`);
     }
 
     const profile = schema ? (write ? { 'content-profile': schema } : { 'accept-profile': schema }) : {};
@@ -142,9 +137,7 @@ export function create(options = {}, { dir } = {}) {
 
       const rows = await response.json();
 
-      return rows
-        .map((row) => ({ kind: row.kind, name: row.name, version: BigInt(row.version ?? 0) }))
-        .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+      return rows.map((row) => ({ kind: row.kind, name: row.name, version: BigInt(row.version ?? 0) })).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
     },
 
     async remove(ref) {

@@ -26,8 +26,7 @@ let rows;
 let requests;
 let deny;
 
-const matches = (row, params) =>
-  ['project', 'kind', 'name'].every((f) => !params.has(f) || params.get(f) === `eq.${row[f]}`) && (!params.has('version') || params.get('version') === `eq.${row.version}`);
+const matches = (row, params) => ['project', 'kind', 'name'].every((f) => !params.has(f) || params.get(f) === `eq.${row[f]}`) && (!params.has('version') || params.get('version') === `eq.${row.version}`);
 
 beforeAll(async () => {
   server = createServer((req, res) => {
@@ -103,9 +102,7 @@ describe('supabase provider', () => {
     expect(requests[0].headers.authorization).toBe('Bearer service-key');
   });
 
-  it('returns null for a row that is not there', async () => {
-    expect(await service().get(ref)).toBe(null);
-  });
+  it('returns null for a row that is not there', async () => expect(await service().get(ref)).toBe(null));
 
   it('round-trips a blob through base64', async () => {
     const db = service();
@@ -199,9 +196,7 @@ describe('supabase with an identity provider', () => {
     expect(requests[0].headers.authorization).toBe('Bearer idp-token');
   });
 
-  it('says to log in when there is no token', async () => {
-    await expect(createSupabase({ url, anonKey: 'anon-key', auth }).get(ref)).rejects.toThrow(/env login/);
-  });
+  it('says to log in when there is no token', async () => await expect(createSupabase({ url, anonKey: 'anon-key', auth }).get(ref)).rejects.toThrow(/env login/));
 
   it('prefers a service key and never consults the identity provider', async () => {
     await createSupabase({ url, anonKey: 'anon-key', serviceKey: 'service-key', auth }).get(ref);

@@ -28,9 +28,7 @@ beforeAll(async () => {
     const url = new URL(req.url, `http://127.0.0.1`);
     const json = (body, status = 200) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
 
-    if (url.pathname === '/.well-known/openid-configuration') {
-      return json({ issuer, authorization_endpoint: `${issuer}/api/authorize`, token_endpoint: `${issuer}/api/token` });
-    }
+    if (url.pathname === '/.well-known/openid-configuration') return json({ issuer, authorization_endpoint: `${issuer}/api/authorize`, token_endpoint: `${issuer}/api/token` });
 
     if (url.pathname === '/api/authorize') {
       seen.push({ kind: 'authorize', params: Object.fromEntries(url.searchParams) });
@@ -53,6 +51,7 @@ beforeAll(async () => {
 
         if (params.grant_type === 'refresh_token') {
           if (params.refresh_token !== 'the-refresh') return json({ error: 'invalid_grant' }, 400);
+
           return json({ access_token: jwt({ sub: 'user-1', email: 'wilson@example.test', exp: Math.floor(Date.now() / 1000) + 3600 }), expires_in: 3600 });
         }
 
@@ -115,9 +114,7 @@ describe('pkce', () => {
     expect(challengeFor(verifier)).not.toBe(verifier);
   });
 
-  it('gives a different verifier every time', () => {
-    expect(createVerifier()).not.toBe(createVerifier());
-  });
+  it('gives a different verifier every time', () => expect(createVerifier()).not.toBe(createVerifier()));
 });
 
 describe('discovery', () => {
@@ -134,9 +131,7 @@ describe('discovery', () => {
     expect(found.token).toBe('https://a.test/token');
   });
 
-  it('explains what to configure when there is no discovery document', async () => {
-    await expect(endpoints({ issuer: `${issuer}/nothing-here` })).rejects.toThrow(/authorizationEndpoint/);
-  });
+  it('explains what to configure when there is no discovery document', async () => await expect(endpoints({ issuer: `${issuer}/nothing-here` })).rejects.toThrow(/authorizationEndpoint/));
 });
 
 describe('the loopback listener', () => {
@@ -253,9 +248,7 @@ describe('stored credentials', () => {
     expect(await accessTokenFor(auth())).toBe(null);
   });
 
-  it('returns null when nothing is stored at all', async () => {
-    expect(await accessTokenFor(auth())).toBe(null);
-  });
+  it('returns null when nothing is stored at all', async () => expect(await accessTokenFor(auth())).toBe(null));
 });
 
 describe('login and whoami', () => {

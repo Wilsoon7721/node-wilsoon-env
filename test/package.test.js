@@ -24,7 +24,7 @@ const exists = async (rel) => {
 
 describe('package manifest', () => {
   it('resolves every exports target, and each one imports', async () => {
-    const targets = Object.entries(pkg.exports).map(([subpath, target]) => [subpath, typeof target === 'string' ? target : target.default ?? target.import]);
+    const targets = Object.entries(pkg.exports).map(([subpath, target]) => [subpath, typeof target === 'string' ? target : (target.default ?? target.import)]);
 
     expect(targets.length).toBeGreaterThan(0);
 
@@ -59,12 +59,7 @@ describe('package manifest', () => {
     }
   });
 
-  it('keeps the runtime dependency list to what the crypto needs', () => {
-    // Argon2 is the one thing Node cannot do itself. Anything else appearing
-    // here is worth a second look: this is a secrets package, and every
-    // dependency is part of its audit surface.
-    expect(Object.keys(pkg.dependencies)).toEqual(['hash-wasm']);
-  });
+  it('keeps the runtime dependency list to what the crypto needs', () => expect(Object.keys(pkg.dependencies)).toEqual(['hash-wasm']));
 
   it('exposes a single bin, which is what makes npx @wilsoon/env work', () => {
     // npx resolves a package to its only bin. A second entry makes the bare

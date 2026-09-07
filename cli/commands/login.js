@@ -85,11 +85,7 @@ export async function login(args) {
 
     outcome({
       ok: `Signed in${result.email ? ` as ${green(result.email)}` : ''}`,
-      next: [
-        'Row level security now decides what you can see.',
-        `Run ${command('pull')} to fetch what you can read`,
-        `Run ${command('logout')} on this machine when you are done with it`
-      ]
+      next: ['Row level security now decides what you can see.', `Run ${command('pull')} to fetch what you can read`, `Run ${command('logout')} on this machine when you are done with it`]
     });
 
     return 0;
@@ -98,9 +94,7 @@ export async function login(args) {
   const wantsDevice = args.flags.device === true || args.flags['no-browser'] === true;
   const useDevice = args.flags.browser === true ? false : wantsDevice || (await supportsDevice(auth));
 
-  if (!useDevice && !isInteractive()) {
-    throw new Error('Signing in with a browser needs a terminal.\n\n  Use --device where the issuer supports it, or in CI set WILSOON_ENV_KEY and the credentials your store needs.\n');
-  }
+  if (!useDevice && !isInteractive()) throw new Error('Signing in with a browser needs a terminal.\n\n  Use --device where the issuer supports it, or in CI set WILSOON_ENV_KEY and the credentials your store needs.\n');
 
   heading(`Signing in to ${cyan(auth.issuer)}`);
 
@@ -122,11 +116,7 @@ export async function login(args) {
 
   outcome({
     ok: `Signed in${result.email ? ` as ${green(result.email)}` : ''}`,
-    next: [
-      'The token only reaches your store - it never unlocks a secret',
-      `Run ${command('pull')} to fetch what you can read`,
-      `Run ${command('logout')} on this machine when you are done with it`
-    ]
+    next: ['The token only reaches your store - it never unlocks a secret', `Run ${command('pull')} to fetch what you can read`, `Run ${command('logout')} on this machine when you are done with it`]
   });
 
   return 0;

@@ -39,14 +39,13 @@ beforeAll(async () => {
 
       if (script.fail) return json(script.fail.body, script.fail.status);
 
-      if (parsed.pathname === '/auth/v1/token' || parsed.pathname === '/auth/v1/verify') {
+      if (parsed.pathname === '/auth/v1/token' || parsed.pathname === '/auth/v1/verify')
         return json({
           access_token: jwt({ sub: 'user-1', email: 'a@b.test', role: 'authenticated' }),
           refresh_token: 'refresh-2',
           expires_in: 3600,
           user: { id: 'user-1', email: 'a@b.test' }
         });
-      }
 
       if (parsed.pathname === '/auth/v1/otp') return json({});
 
@@ -175,9 +174,8 @@ describe('provider with a user token', () => {
     expect(captured.authorization).toBe('Bearer user-token');
   });
 
-  it('says to log in rather than silently falling back to the anon key', async () => {
-    await expect(createSupabase({ url, anonKey: 'anon-key', auth: { type: 'supabase', issuer: url } }).get({ project: 'p', kind: 'env', name: '.env' })).rejects.toThrow(/env login/);
-  });
+  it('says to log in rather than silently falling back to the anon key', async () =>
+    await expect(createSupabase({ url, anonKey: 'anon-key', auth: { type: 'supabase', issuer: url } }).get({ project: 'p', kind: 'env', name: '.env' })).rejects.toThrow(/env login/));
 });
 
 describe('config', () => {

@@ -93,9 +93,7 @@ export async function unlockIdentity(session, askPassphrase, { as, cache = true 
     const cached = await recall(account);
 
     // A cached key that no longer matches the stored identity is stale - drop it
-    if (cached && keyIdOf(publicOf(cached)).toString('hex') === chosen.keyid) {
-      return { privateRaw: cached, keyid: keyIdOf(publicOf(cached)), name: chosen.name, source: 'keychain' };
-    }
+    if (cached && keyIdOf(publicOf(cached)).toString('hex') === chosen.keyid) return { privateRaw: cached, keyid: keyIdOf(publicOf(cached)), name: chosen.name, source: 'keychain' };
 
     if (cached) await forget(account);
   }

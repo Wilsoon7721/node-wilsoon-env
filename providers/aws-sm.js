@@ -70,9 +70,7 @@ export function create(options = {}, { dir } = {}) {
   }
 
   function explain(result, what) {
-    if (result.__error === 'AccessDeniedException' || result.__status === 403) {
-      return new Error(`Access denied ${what}. The credentials need secretsmanager:GetSecretValue, CreateSecret, PutSecretValue, ListSecrets and DeleteSecret.`);
-    }
+    if (result.__error === 'AccessDeniedException' || result.__status === 403) return new Error(`Access denied ${what}. The credentials need secretsmanager:GetSecretValue, CreateSecret, PutSecretValue, ListSecrets and DeleteSecret.`);
 
     return new Error(`Secrets Manager refused ${what}: ${result.__error ?? result.__status}${result.__message ? ` - ${result.__message}` : ''}`);
   }
@@ -93,9 +91,7 @@ export function create(options = {}, { dir } = {}) {
     },
 
     async put(ref, blob, { ifVersion } = {}) {
-      if (blob.length > MAX_VALUE) {
-        throw new Error(`${ref.name} is ${blob.length} bytes, over the ${MAX_VALUE} byte limit Secrets Manager allows.\n\n  Use the s3 provider for files this size.\n`);
-      }
+      if (blob.length > MAX_VALUE) throw new Error(`${ref.name} is ${blob.length} bytes, over the ${MAX_VALUE} byte limit Secrets Manager allows.\n\n  Use the s3 provider for files this size.\n`);
 
       const version = versionOf(blob, ref.kind);
 
@@ -114,9 +110,7 @@ export function create(options = {}, { dir } = {}) {
       if (updated.__error === 'ResourceNotFoundException') {
         const created = await call('CreateSecret', { Name: SecretId, SecretBinary, Description: 'Sealed by @wilsoon/env' });
         if (created.__error) throw explain(created, `creating ${ref.name}`);
-      } else if (updated.__error) {
-        throw explain(updated, `writing ${ref.name}`);
-      }
+      } else if (updated.__error) throw explain(updated, `writing ${ref.name}`);
 
       return { version };
     },

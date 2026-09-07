@@ -58,7 +58,22 @@ export async function join(args) {
     ...(config.kdf ? { kdf: config.kdf } : {}),
     include: config.include,
     exclude: config.exclude,
-    recipients: [...config.recipients, { name: me, keyid, pubkey, ...(args.flags.files ? { files: String(args.flags.files).split(',').map((f) => f.trim()).filter(Boolean) } : {}) }]
+    recipients: [
+      ...config.recipients,
+      {
+        name: me,
+        keyid,
+        pubkey,
+        ...(args.flags.files
+          ? {
+              files: String(args.flags.files)
+                .split(',')
+                .map((f) => f.trim())
+                .filter(Boolean)
+            }
+          : {})
+      }
+    ]
   };
 
   if (loaded.source === 'package.json') {

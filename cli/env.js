@@ -77,7 +77,9 @@ async function main(argv) {
   }
 
   try {
-    return await (await load())(args);
+    return await (
+      await load()
+    )(args);
   } finally {
     // Providers that hold a socket have to be told to let go
     const { closeSessions } = await import('../core/session.js');

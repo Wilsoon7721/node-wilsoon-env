@@ -17,6 +17,7 @@ export async function logout(args) {
   if (!describeKeychain()) {
     if (signedOut) ok(`Signed out of ${cyan(auth.issuer)}`);
     else warn('No keychain is available on this machine, so nothing is cached.');
+
     return 0;
   }
 
