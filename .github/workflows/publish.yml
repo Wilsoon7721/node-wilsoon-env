@@ -29,6 +29,11 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # Node 22 bundles npm 10, which predates OIDC trusted publishing (needs 11.5.1+).
+      # The toolchain that publishes is not the toolchain the package has to support.
+      - name: Use an npm that can trust-publish
+        run: npm install -g npm@^11
+
       - run: npm ci --ignore-scripts
 
       - name: Lint
@@ -39,9 +44,9 @@ jobs:
       - name: Show what would be published
         run: npm publish --dry-run --provenance --access public
 
+      # No NODE_AUTH_TOKEN. Trusted publishing exchanges the id-token above for a
+      # registry credential; an empty _authToken makes npm attempt token auth and
+      # fail with 401 rather than falling back, so the variable is worse than absent.
       - name: Publish
         if: ${{ !inputs.dry_run }}
-        env:
-          # Empty unless the repo has an NPM_TOKEN. Trusted publishing is intended and doesn't require a secret.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
