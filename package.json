@@ -25,7 +25,7 @@
     "node": ">=22.12.0"
   },
   "bin": {
-    "wilsoon-env": "./cli/env.js"
+    "wilsoon-env": "cli/env.js"
   },
   "main": "./index.js",
   "exports": {
