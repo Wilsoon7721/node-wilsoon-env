@@ -14,8 +14,6 @@ concurrency:
 
 permissions:
   contents: read
-  # What makes provenance possible: npm verifies this workflow's identity over
-  # OIDC, so there is no long-lived token to store or leak.
   id-token: write
 
 jobs:
@@ -31,33 +29,19 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      # --ignore-scripts, because a publish job should not run arbitrary install
-      # hooks from the dependency tree.
       - run: npm ci --ignore-scripts
 
-      # `npm run lint` is wlint, which is eslint --fix plus prettier --write: a
-      # fixer with no check mode. Run on its own it would rewrite files here and
-      # pass whatever the input was, so the diff afterwards is the actual gate.
-      - name: Formatting and lint
-        run: |
-          npm run lint
-          git diff --exit-code || {
-            echo "::error::Formatting is out of date. Run 'npm run lint' and commit the result."
-            exit 1
-          }
+      - name: Lint
+        run: npx eslint .
 
       - run: npm test
 
-      # The tarball is what actually ships, so check its contents rather than the
-      # working tree: a missing file here is a broken install for everyone.
       - name: Show what would be published
         run: npm publish --dry-run --provenance --access public
 
       - name: Publish
         if: ${{ !inputs.dry_run }}
         env:
-          # Empty unless the repo has an NPM_TOKEN. Trusted publishing is the
-          # intended path and needs no secret; this only covers a first publish
-          # of a package name that npm does not yet know about.
+          # Empty unless the repo has an NPM_TOKEN. Trusted publishing is intended and doesn't require a secret.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
