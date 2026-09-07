@@ -73,30 +73,30 @@ You'll be asked for your passphrase. Machine one is not involved: the identity k
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `setup` | Create a project, generate an identity key, write the config |
-| `join` | Add your key to a project someone else set up |
-| `push [files...]` | Encrypt and store; adding a recipient takes effect here |
-| `pull [files...]` | Fetch, decrypt, and write — with a diff before overwriting |
-| `status` | Compare local against stored. Never decrypts, never asks for a passphrase |
-| `run -- <cmd>` | Decrypt into a child process's environment, never onto disk |
-| `keys list\|add\|new\|audit\|remove` | Manage recipients |
-| `rm <files...>` | Delete a file from the store (local copies untouched) |
-| `login` / `whoami` | Sign in (Supabase Auth, or an OIDC issuer) |
-| `logout` | Forget cached keys and tokens on this machine |
+| Command                              | What it does                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `setup`                              | Create a project, generate an identity key, write the config              |
+| `join`                               | Add your key to a project someone else set up                             |
+| `push [files...]`                    | Encrypt and store; adding a recipient takes effect here                   |
+| `pull [files...]`                    | Fetch, decrypt, and write — with a diff before overwriting                |
+| `status`                             | Compare local against stored. Never decrypts, never asks for a passphrase |
+| `run -- <cmd>`                       | Decrypt into a child process's environment, never onto disk               |
+| `keys list\|add\|new\|audit\|remove` | Manage recipients                                                         |
+| `rm <files...>`                      | Delete a file from the store (local copies untouched)                     |
+| `login` / `whoami`                   | Sign in (Supabase Auth, or an OIDC issuer)                                |
+| `logout`                             | Forget cached keys and tokens on this machine                             |
 
-Useful flags: `--force` and `--yes` to skip confirmations, `--file a,b` to choose files for `run`, `--as <name>` to pick an identity, `--no-cache` to bypass the keychain, `--device` / `--browser` to pick a sign-in flow, `--cwd` to work outside the current directory.
+Useful flags: `--force` and `--yes` to skip confirmations, `--provider` and the store flags below, `--file a,b` to choose files for `run`, `--as <name>` to pick an identity, `--no-cache` to bypass the keychain, `--device` / `--browser` to pick a sign-in flow, `--cwd` to work outside the current directory.
 
 ## Remembering your passphrase
 
 After the first successful unlock on a machine, the identity key is cached in the OS keychain, so day-to-day `pull` and `run` ask for nothing. The cache expires after 14 days, and `logout` clears it — which only forces a passphrase next time, it never makes anything unreadable.
 
-| Platform | Backend | Status |
-|---|---|---|
-| Windows | DPAPI, ciphertext under `%APPDATA%` | tested |
-| macOS | login keychain via `security` | **untested** |
-| Linux | libsecret via `secret-tool` | **untested** |
+| Platform | Backend                             | Status       |
+| -------- | ----------------------------------- | ------------ |
+| Windows  | DPAPI, ciphertext under `%APPDATA%` | tested       |
+| macOS    | login keychain via `security`       | **untested** |
+| Linux    | libsecret via `secret-tool`         | **untested** |
 
 Only the Windows path has been exercised on real hardware. The other two are written against their documented interfaces; if a backend is missing or errors, caching is skipped and you are asked for your passphrase — the behaviour with no keychain at all. Set `WILSOON_ENV_NO_KEYCHAIN=1` to turn it off entirely.
 
@@ -132,7 +132,7 @@ Concurrent pushes are handled with conditional writes (`If-Match` on the object'
 
 **`kv`** — Cloudflare Workers KV, over the REST API. Needs `CLOUDFLARE_API_TOKEN` plus an account and namespace id.
 
-> **KV is eventually consistent.** A write is visible immediately in the region that made it and takes up to about a minute elsewhere. So `push` on your laptop followed by `pull` on a CI runner can legitimately return the *previous* secrets, with nothing to indicate anything is wrong. For this workload **R2 (via `s3`) is the better Cloudflare answer**. This adapter exists because people ask for it.
+> **KV is eventually consistent.** A write is visible immediately in the region that made it and takes up to about a minute elsewhere. So `push` on your laptop followed by `pull` on a CI runner can legitimately return the _previous_ secrets, with nothing to indicate anything is wrong. For this workload **R2 (via `s3`) is the better Cloudflare answer**. This adapter exists because people ask for it.
 
 **`supabase`** — a Postgres row per file, over PostgREST. No SDK either. Like `s3`, it has a **genuine atomic compare-and-swap** — here because `update … where version = $prev` either matches a row or does not; there is no read-then-write window at all.
 
@@ -202,7 +202,7 @@ That policy looks permissive, and deliberately so — see [what RLS is actually 
 
 **RLS is not what keeps your secrets secret. The recipient list is.**
 
-Every value is sealed before it leaves your machine, so someone removed from `recipients` cannot read a later push *even holding the whole table*. Equally, RLS alone would protect nothing if the encryption were absent.
+Every value is sealed before it leaves your machine, so someone removed from `recipients` cannot read a later push _even holding the whole table_. Equally, RLS alone would protect nothing if the encryption were absent.
 
 So policies here buy two narrower things, both worth having:
 
@@ -213,7 +213,7 @@ That is why "any signed-in user may read and write every row" is a reasonable po
 
 For **unrelated tenants** sharing one Supabase project the answer is different — that needs `owner` in the primary key and in every filter. The config reserves `"scope": "user"` for it; only `"shared"` is implemented today.
 
-**Two identity providers, two levels of setup.** `"auth": { "type": "supabase" }` needs nothing configured — Supabase issued the token, so it already trusts it. `"auth": { "type": "oidc" }` pointing at your own issuer is a *foreign* JWT, so `auth.uid()` resolves only once Supabase is configured to trust that issuer. Prefer the first unless you specifically want your own identity provider in the loop.
+**Two identity providers, two levels of setup.** `"auth": { "type": "supabase" }` needs nothing configured — Supabase issued the token, so it already trusts it. `"auth": { "type": "oidc" }` pointing at your own issuer is a _foreign_ JWT, so `auth.uid()` resolves only once Supabase is configured to trust that issuer. Prefer the first unless you specifically want your own identity provider in the loop.
 
 **`mongodb`** — a document per file. The only adapter with a dependency, kept as an optional peer so it never weighs down an `npx` run:
 
@@ -227,15 +227,34 @@ Verified against a real MongoDB Atlas cluster: full `setup`/`push`/`pull`, a sta
 
 ## Signing in
 
-Some stores can authenticate you against an OIDC issuer instead of a long-lived key. Add an `auth` block:
+Some stores can authenticate you against an OIDC issuer instead of a long-lived key. Only Supabase uses this today: it is the one provider whose store has a notion of _people_, because row level security evaluates `auth.uid()` per request. Everything else takes a machine credential and has nothing to sign in to.
+
+`setup` writes the block for you:
+
+```bash
+npx @wilsoon/env setup --provider supabase \
+  --url https://xyz.supabase.co --anon-key "$SUPABASE_ANON_KEY" \
+  --table blobs --schema my_schema \
+  --auth oidc --issuer https://id.example.com --client-id my-client
+```
+
+which produces:
 
 ```jsonc
 {
   "provider": "supabase",
-  "auth": { "type": "oidc", "issuer": "https://id.example.com" },
-  "options": { "url": "https://xyz.supabase.co", "anonKey": "${SUPABASE_ANON_KEY}" }
+  "auth": { "type": "oidc", "issuer": "https://id.example.com", "clientId": "my-client" },
+  "options": { "url": "https://xyz.supabase.co", "anonKey": "...", "table": "blobs", "schema": "my_schema" }
 }
 ```
+
+A store behind a login is a chicken and egg: `setup` cannot write to it until you are signed in, and `login` reads the issuer out of the config `setup` has not written yet. Break it by naming the issuer on the command line - no config needed:
+
+```bash
+npx @wilsoon/env login --issuer https://id.example.com --client-id my-client
+```
+
+Credentials are filed per issuer for the whole machine, not per project, so you do this once and every later project on that issuer is already signed in.
 
 ```bash
 npx @wilsoon/env login     # opens a browser, PKCE, no client secret
@@ -258,7 +277,7 @@ For an external OIDC issuer there are two ways in, and the right one is chosen f
 
 No redirect, no listener, and the browser can be on a **different machine entirely** — which is what makes it the flow that works over SSH, in a container, and on a headless box. Nothing needs registering beyond a client id.
 
-**Redirect with PKCE — the fallback.** Binds a loopback listener on an ephemeral port and uses that as the redirect URI. Slightly nicer on a desktop, but it requires the issuer to permit a loopback redirect on *any* port, as [RFC 8252 §7.3](https://www.rfc-editor.org/rfc/rfc8252#section-7.3) asks. Force it with `--browser`, or force the device grant with `--device`.
+**Redirect with PKCE — the fallback.** Binds a loopback listener on an ephemeral port and uses that as the redirect URI. Slightly nicer on a desktop, but it requires the issuer to permit a loopback redirect on _any_ port, as [RFC 8252 §7.3](https://www.rfc-editor.org/rfc/rfc8252#section-7.3) asks. Force it with `--browser`, or force the device grant with `--device`.
 
 Both use PKCE. The device grant obeys the server on every deadline: `slow_down` adopts the interval the server returns, and a local timer is never treated as authoritative — the client keeps polling until the server itself says approved, refused or expired.
 
@@ -338,7 +357,7 @@ passphrase                one per person, typed once per machine
 ```
 
 - **Argon2id** (64 MiB, t=3) derives a key from your passphrase. Parameters are recorded in each blob, so they can be raised later without stranding old vaults.
-- **AES-256-GCM** encrypts each file whole, so key *names* never leak — the store learns only size and modification time.
+- **AES-256-GCM** encrypts each file whole, so key _names_ never leak — the store learns only size and modification time.
 - **X25519** wraps the file key once per recipient, which is why adding someone costs 100 bytes rather than re-encrypting anything.
 - Project, filename and version are bound into the authenticated data, so a blob can't be replayed as a different file or silently rolled back.
 
@@ -351,7 +370,7 @@ A breached or malicious store, a leaked backup, a curious employee at your cloud
 ### What it does not
 
 - **A compromised machine.** The key is on it, or in its memory.
-- **Revocation of what someone already has.** Removing a recipient stops them decrypting *future* pushes. It does nothing about the plaintext already on their laptop. If someone should lose access to the current values, rotate the secrets themselves.
+- **Revocation of what someone already has.** Removing a recipient stops them decrypting _future_ pushes. It does nothing about the plaintext already on their laptop. If someone should lose access to the current values, rotate the secrets themselves.
 - **A weak passphrase.** It's the one thing an attacker holding a stolen blob can attack offline, at their own pace. `keys audit` can verify the Argon2 cost each identity was sealed at, but passphrase strength itself is never recorded anywhere and cannot be checked by anyone.
 - **Supply chain.** `npx` fetches the latest published version every run. Pin it for anything routine.
 

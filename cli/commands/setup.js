@@ -8,6 +8,7 @@ import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
 import { cyan, dim } from '../lib/format.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 import { confirm, newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { authFromFlags, withIssuer } from '../lib/authflags.js';
 
 const GITIGNORE_ENTRIES = ['.env', '.env.*', '!.env.example', '!.env.*.example', '.wilsoon-store/'];
 
@@ -54,10 +55,16 @@ export async function setup(args) {
     ['endpoint', 'endpoint'],
     ['region', 'region'],
     ['prefix', 'prefix'],
-    ['profile', 'profile']
+    ['profile', 'profile'],
+    ['url', 'url'],
+    ['anon-key', 'anonKey'],
+    ['table', 'table'],
+    ['schema', 'schema']
   ]) {
     if (typeof args.flags[flag] === 'string') options[key] = args.flags[flag];
   }
+
+  const auth = withIssuer(authFromFlags(args.flags, prior?.auth ?? null), options.url ?? process.env.SUPABASE_URL);
 
   heading(`Setting up ${cyan(project)}`);
   field('Provider', providerName);
@@ -69,7 +76,7 @@ export async function setup(args) {
     project,
     provider: providerName,
     options,
-    ...(prior?.auth ? { auth: prior.auth } : {}),
+    ...(auth ? { auth } : {}),
     ...(prior?.kdf ? { kdf: prior.kdf } : {}),
     include: prior?.include ?? DEFAULT_INCLUDE,
     exclude: prior?.exclude ?? DEFAULT_EXCLUDE,

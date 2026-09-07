@@ -45,6 +45,15 @@ const HELP = `
     --help         Show this
     --version      Print the version
 
+  ${dim('Where the store is')} ${dim('(setup)')}
+    --path, --bucket, --endpoint, --region, --prefix, --profile
+    --url, --anon-key, --table, --schema
+
+  ${dim('Who you are to it')} ${dim('(setup, and login before a config exists)')}
+    --auth <oidc|supabase>   How the store decides who you are
+    --issuer <url>           Issuer base URL, for --auth oidc
+    --client-id <id>         Public client id. No secret
+
   ${dim('Run a command with specific files:')}  ${command('pull .env.production')}
 `;
 

@@ -5,6 +5,7 @@ import { accessTokenFor, readCredential, writeCredential } from '../../auth/toke
 import { bold, cyan, dim, green, yellow } from '../lib/format.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 import { ask, isInteractive, password as promptPassword, requireInteractive } from '../lib/prompt.js';
+import { authFromFlags, withIssuer } from '../lib/authflags.js';
 
 /** Both strategies are stored the same way */
 async function storeCredential(auth, result) {
@@ -20,10 +21,7 @@ async function storeCredential(auth, result) {
 /**
  * Sign in with Supabase's own auth
  */
-async function supabaseLogin(session, auth, args) {
-  const options = session.config.options ?? {};
-  const strategy = { ...auth, url: options.url ?? process.env.SUPABASE_URL, anonKey: options.anonKey ?? process.env.SUPABASE_ANON_KEY };
-
+async function supabaseLogin(strategy, args) {
   requireInteractive('Signing in to Supabase');
 
   const email = args.flags.email ?? (await ask('  Email: '));
@@ -54,6 +52,23 @@ function authConfig(session) {
 }
 
 /**
+ * The auth block, and the Supabase options a supabase strategy needs with it.
+ *
+ * Flags win and skip the config entirely, so signing in works before setup has
+ * run - which it has to, because setup cannot write to a store behind a login.
+ */
+async function resolve(args) {
+  const fromFlags = authFromFlags(args.flags);
+  const session = fromFlags ? null : await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  const options = session?.config.options ?? {};
+  const auth = fromFlags ?? authConfig(session);
+
+  const url = args.flags.url ?? options.url ?? process.env.SUPABASE_URL;
+
+  return { auth: withIssuer(auth, url), url, anonKey: args.flags['anon-key'] ?? options.anonKey ?? process.env.SUPABASE_ANON_KEY };
+}
+
+/**
  * Show the code and where to type it.
  */
 function devicePrompt({ userCode, verificationUri, verificationUriComplete, expiresIn }) {
@@ -71,16 +86,15 @@ function devicePrompt({ userCode, verificationUri, verificationUriComplete, expi
 }
 
 export async function login(args) {
-  const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
-  const auth = authConfig(session);
+  const { auth, url, anonKey } = await resolve(args);
 
   if (!auth) return 1;
 
   // Supabase issues its own tokens
   if (auth.type === 'supabase') {
-    heading(`Signing in to ${cyan(auth.issuer)}`);
+    heading(`Signing in to ${cyan(auth.issuer ?? url)}`);
 
-    const result = await supabaseLogin(session, auth, args);
+    const result = await supabaseLogin({ ...auth, url, anonKey }, args);
     await storeCredential(auth, result);
 
     outcome({
@@ -123,8 +137,7 @@ export async function login(args) {
 }
 
 export async function whoami(args) {
-  const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
-  const auth = authConfig(session);
+  const { auth, url, anonKey } = await resolve(args);
 
   if (!auth) return 1;
 
@@ -136,7 +149,7 @@ export async function whoami(args) {
     return 1;
   }
 
-  const usable = await accessTokenFor(auth.type === 'supabase' ? { ...auth, url: session.config.options?.url ?? process.env.SUPABASE_URL, anonKey: session.config.options?.anonKey ?? process.env.SUPABASE_ANON_KEY } : auth);
+  const usable = await accessTokenFor(auth.type === 'supabase' ? { ...auth, url, anonKey } : auth);
 
   heading(`${cyan(auth.issuer)}`);
   field('Account', stored.email ?? stored.sub ?? dim('unknown'));
