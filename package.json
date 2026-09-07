@@ -1,6 +1,6 @@
 {
   "name": "@wilsoon/env",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "End-to-end encrypted environment variables, synced through a storage provider of your choosing",
   "keywords": [
     "dotenv",
