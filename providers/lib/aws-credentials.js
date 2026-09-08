@@ -54,7 +54,7 @@ async function fromFile(profile) {
  *
  * @returns {Promise<{accessKeyId, secretAccessKey, sessionToken?, source}>}
  */
-export async function resolveCredentials(options = {}) {
+export async function resolveCredentials(options = {}, provider = 's3') {
   if (options.accessKeyId && options.secretAccessKey) return { accessKeyId: options.accessKeyId, secretAccessKey: options.secretAccessKey, sessionToken: options.sessionToken, source: 'config' };
 
   if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
@@ -71,7 +71,7 @@ export async function resolveCredentials(options = {}) {
 
   throw new Error(
     [
-      'No credentials found for the s3 provider.',
+      `No credentials found for the ${provider} provider.`,
       '',
       '  Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or add a profile to',
       `  ~/.aws/credentials (looked for "${profile}").`,

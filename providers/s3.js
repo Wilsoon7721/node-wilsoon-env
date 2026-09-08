@@ -61,7 +61,7 @@ export function create(options = {}, { dir } = {}) {
   }
 
   async function request(method, url, { body, headers = {}, expect = [200] } = {}) {
-    credentials ??= await resolveCredentials(options);
+    credentials ??= await resolveCredentials(options, 's3');
 
     const payloadSha256 = body === undefined ? EMPTY_PAYLOAD_SHA256 : createHash('sha256').update(body).digest('hex');
 

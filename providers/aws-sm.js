@@ -38,7 +38,7 @@ export function create(options = {}, { dir } = {}) {
   };
 
   async function call(action, payload) {
-    credentials = credentials ?? (await resolveCredentials(options));
+    credentials = credentials ?? (await resolveCredentials(options, 'aws'));
 
     const body = JSON.stringify(payload);
     const url = new URL(endpoint);

@@ -22,6 +22,16 @@ async function askFor(io, question, fallback = '') {
   return answer || fallback;
 }
 
+async function askUrl(io, question, what) {
+  for (;;) {
+    try {
+      return normaliseIssuer(await askRequired(io, question, what), what);
+    } catch (err) {
+      note(err.message.split('\n')[0]);
+    }
+  }
+}
+
 async function askRequired(io, question, what) {
   for (;;) {
     const answer = await askFor(io, question);
@@ -37,7 +47,7 @@ async function optionsFor(io, provider) {
   if (provider === 'local') return { options: { path: await askFor(io, 'Where should the store live?', '.wilsoon-store') }, secrets: [] };
 
   if (provider === 'supabase') {
-    const url = await askRequired(io, 'Supabase project URL', 'A project URL');
+    const url = await askUrl(io, 'Supabase project URL', 'project URL');
 
     note('The publishable (anon) key is safe to commit - row level security is what protects the rows.');
 
@@ -90,18 +100,11 @@ async function authFor(io, provider) {
 
   if (kind === 'supabase') return { type: 'supabase' };
 
-  let issuer;
+  const issuer = await askUrl(io, 'Issuer URL', 'issuer');
 
-  for (;;) {
-    try {
-      issuer = normaliseIssuer(await askRequired(io, 'Issuer URL', 'An issuer'));
-      break;
-    } catch (err) {
-      note(err.message.split('\n')[0]);
-    }
-  }
+  note('The client id is whatever you registered this CLI as with that issuer.');
 
-  return keep({ type: 'oidc', issuer, clientId: await askFor(io, 'Client id', 'wilsoon-env') });
+  return keep({ type: 'oidc', issuer, clientId: await askRequired(io, 'Client id', 'A client id') });
 }
 
 /**
@@ -150,10 +153,10 @@ export async function runWizard({ cwd, io = {} }) {
 }
 
 /** Offer to keep the store once it works */
-export async function offerToSave({ provider, options, auth }, io = {}) {
+export async function offerToSave({ provider, options, auth }, io = {}, { question = '  Save this store, so the next project is one question?' } = {}) {
   console.log('');
 
-  if (!(await confirm('  Save this store, so the next project is one question?', io))) return null;
+  if (!(await confirm(question, io))) return null;
 
   const name = (await askFor(io, 'Call it', 'default')) || 'default';
   const file = await saveStore(name, { provider, options, auth });

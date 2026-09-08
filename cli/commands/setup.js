@@ -76,21 +76,16 @@ async function ensureSignedIn(auth, options, args) {
 }
 
 /** Prove the store answers */
-async function reachable(provider, project) {
+async function connect({ config, cwd, project, auth, options, args }) {
+  const provider = await resolveProvider(config, cwd);
+
+  await ensureSignedIn(auth, options, args);
+
   console.log('');
+  await provider.list(project);
+  note(`${green(S.ok)} Reached ${cyan(provider.describe?.() ?? provider.name)}`);
 
-  try {
-    await provider.list(project);
-    note(`${green(S.ok)} Reached ${cyan(provider.describe?.() ?? provider.name)}`);
-
-    return true;
-  } catch (err) {
-    console.log('');
-    warn(`Could not reach the store: ${err.message}`);
-    note('Nothing was written, and no key was generated. Fix the above and run setup again.');
-
-    return false;
-  }
+  return provider;
 }
 
 export async function setup(args) {
@@ -146,10 +141,20 @@ export async function setup(args) {
     recipients: []
   };
 
-  const provider = await resolveProvider(config, cwd);
-  if (chosen) {
-    await ensureSignedIn(auth, options, args);
-    if (!(await reachable(provider, project))) return 1;
+  let provider;
+
+  try {
+    provider = chosen ? await connect({ config, cwd, project, auth, options, args }) : await resolveProvider(config, cwd);
+  } catch (err) {
+    if (!chosen) throw err;
+
+    console.log('');
+    warn(`Could not reach the store: ${err.message}`);
+    note('Nothing was written, and no key was generated.');
+
+    if (wizard && !wizard.saved) await offerToSave({ provider: providerName, options, auth }, {}, { question: '  Keep these answers, so the next run does not ask again?' });
+
+    return 1;
   }
 
   if (wizard && !wizard.saved) await offerToSave({ provider: providerName, options, auth });

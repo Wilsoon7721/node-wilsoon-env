@@ -24,10 +24,10 @@ export const AUTH_TYPES = ['oidc', 'supabase'];
  * later as a failed discovery against a relative URL. Plain http is refused
  * outside loopback: the token this fetches is a bearer credential.
  */
-export function normaliseIssuer(value) {
+export function normaliseIssuer(value, what = 'issuer') {
   const text = String(value ?? '').trim();
 
-  if (!text) throw new Error('An issuer is needed.');
+  if (!text) throw new Error(`A ${what} is needed.`);
 
   let url;
 
@@ -39,7 +39,7 @@ export function normaliseIssuer(value) {
 
   const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1';
 
-  if (url.protocol !== 'https:' && !loopback) throw new Error(`Refusing a plain http issuer (${url.origin}).\n\n  The token it hands back is a bearer credential, so the connection has to be https.\n`);
+  if (url.protocol !== 'https:' && !loopback) throw new Error(`Refusing a plain http ${what} (${url.origin}).\n\n  The token it hands back is a bearer credential, so the connection has to be https.\n`);
 
   return url.origin + url.pathname.replace(/\/+$/, '');
 }
