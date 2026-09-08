@@ -11,6 +11,8 @@ import { confirm, isInteractive, newPassphrase, requireInteractive } from '../li
 import { authFromFlags, withIssuer } from '../lib/authflags.js';
 import { listStores, readStore } from '../lib/stores.js';
 import { offerToSave, runWizard } from './wizard.js';
+import { signIn } from './login.js';
+import { readCredential } from '../../auth/tokens.js';
 
 const GITIGNORE_ENTRIES = ['.env', '.env.*', '!.env.example', '!.env.*.example', '.wilsoon-store/'];
 
@@ -50,6 +52,27 @@ async function storeSettings(args, cwd, prior) {
   if (typeof args.flags.provider === 'string' || prior || !isInteractive()) return null;
 
   return { ...(await runWizard({ cwd })), asked: true };
+}
+
+/*
+  A store behind a login cannot be reached until this machine has signed in, and
+  the sign-in needs nothing from the config we are about to write. So offer it
+  here rather than failing with advice to run a command that would itself ask
+  for the config that does not exist yet.
+*/
+async function ensureSignedIn(auth, options, args) {
+  if (!auth || !isInteractive()) return;
+  if (await readCredential(auth.issuer)) return;
+
+  console.log('');
+  note(`This store works out who you are through ${cyan(auth.issuer)}, and this machine has not signed in yet.`);
+
+  if (!(await confirm('  Sign in now?'))) {
+    note(`Do it later with ${command(`login --issuer ${auth.issuer}`)}, then run setup again.`);
+    return;
+  }
+
+  await signIn(auth, args, { url: options.url, anonKey: options.anonKey });
 }
 
 /** Prove the store answers */
@@ -124,7 +147,11 @@ export async function setup(args) {
   };
 
   const provider = await resolveProvider(config, cwd);
-  if (chosen && !(await reachable(provider, project))) return 1;
+  if (chosen) {
+    await ensureSignedIn(auth, options, args);
+    if (!(await reachable(provider, project))) return 1;
+  }
+
   if (wizard && !wizard.saved) await offerToSave({ provider: providerName, options, auth });
 
   const me = args.flags.name ?? 'me';

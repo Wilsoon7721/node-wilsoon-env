@@ -51,6 +51,21 @@ function authConfig(session) {
   return auth;
 }
 
+/*
+  Without a config there is nothing saying which issuer to sign in to - but the
+  generic "run setup" advice is wrong here, because setup is very often the thing
+  that just sent you over. Name the way out that does not need a config.
+*/
+async function openSessionOrExplain(args) {
+  try {
+    return await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  } catch (err) {
+    if (!/No wilsoon-env configuration/.test(err.message)) throw err;
+
+    throw new Error(`There is no configuration here, so nothing says which issuer to sign in to.\n\n  Name it instead - this needs no config:\n    npx @wilsoon/env login --issuer https://issuer.example\n`);
+  }
+}
+
 /**
  * The auth block, and the Supabase options a supabase strategy needs with it.
  *
@@ -59,7 +74,7 @@ function authConfig(session) {
  */
 async function resolve(args) {
   const fromFlags = authFromFlags(args.flags);
-  const session = fromFlags ? null : await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  const session = fromFlags ? null : await openSessionOrExplain(args);
   const options = session?.config.options ?? {};
   const auth = fromFlags ?? authConfig(session);
 
@@ -85,24 +100,23 @@ function devicePrompt({ userCode, verificationUri, verificationUriComplete, expi
   note('Waiting for you to approve it...');
 }
 
-export async function login(args) {
-  const { auth, url, anonKey } = await resolve(args);
-
-  if (!auth) return 1;
-
-  // Supabase issues its own tokens
+/**
+ * Run whichever sign-in the auth block asks for and keep the credential.
+ *
+ * Separate from the command so setup can offer it in place: a store behind a
+ * login cannot be set up until you are signed in, and being told to run another
+ * command that then asks for a config you have not written yet is a dead end.
+ *
+ * @returns {Promise<object>} the credential, with `email` when the issuer said one
+ */
+export async function signIn(auth, args, { url, anonKey } = {}) {
   if (auth.type === 'supabase') {
     heading(`Signing in to ${cyan(auth.issuer ?? url)}`);
 
     const result = await supabaseLogin({ ...auth, url, anonKey }, args);
     await storeCredential(auth, result);
 
-    outcome({
-      ok: `Signed in${result.email ? ` as ${green(result.email)}` : ''}`,
-      next: ['Row level security now decides what you can see.', `Run ${command('pull')} to fetch what you can read`, `Run ${command('logout')} on this machine when you are done with it`]
-    });
-
-    return 0;
+    return result;
   }
 
   const wantsDevice = args.flags.device === true || args.flags['no-browser'] === true;
@@ -118,19 +132,33 @@ export async function login(args) {
   const result = useDevice
     ? await deviceAuthorize(auth, { onPrompt: devicePrompt })
     : await authorize(auth, {
-        onUrl: (url) => {
+        onUrl: (opened) => {
           note('Approve the request in the browser window that just opened.');
           note('If it did not open, use this URL:');
-          console.log(`  ${cyan(url)}`);
+          console.log(`  ${cyan(opened)}`);
           console.log('');
         }
       });
 
   await storeCredential(auth, result);
 
+  return result;
+}
+
+export async function login(args) {
+  const { auth, url, anonKey } = await resolve(args);
+
+  if (!auth) return 1;
+
+  const result = await signIn(auth, args, { url, anonKey });
+
   outcome({
     ok: `Signed in${result.email ? ` as ${green(result.email)}` : ''}`,
-    next: ['The token only reaches your store - it never unlocks a secret', `Run ${command('pull')} to fetch what you can read`, `Run ${command('logout')} on this machine when you are done with it`]
+    next: [
+      auth.type === 'supabase' ? 'Row level security now decides what you can see.' : 'The token only reaches your store - it never unlocks a secret',
+      `Run ${command('pull')} to fetch what you can read`,
+      `Run ${command('logout')} on this machine when you are done with it`
+    ]
   });
 
   return 0;

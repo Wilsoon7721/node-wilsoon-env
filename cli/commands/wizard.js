@@ -4,6 +4,7 @@ import { cyan, dim } from '../lib/format.js';
 import { heading, note, warn } from '../lib/ui.js';
 import { ask, choose, confirm } from '../lib/prompt.js';
 import { listStores, saveStore } from '../lib/stores.js';
+import { normaliseIssuer } from '../lib/authflags.js';
 
 const PROVIDERS = [
   { value: 'local', label: 'This machine only', hint: 'no account, good for trying it out' },
@@ -89,7 +90,18 @@ async function authFor(io, provider) {
 
   if (kind === 'supabase') return { type: 'supabase' };
 
-  return keep({ type: 'oidc', issuer: await askRequired(io, 'Issuer URL', 'An issuer'), clientId: await askFor(io, 'Client id', 'wilsoon-env') });
+  let issuer;
+
+  for (;;) {
+    try {
+      issuer = normaliseIssuer(await askRequired(io, 'Issuer URL', 'An issuer'));
+      break;
+    } catch (err) {
+      note(err.message.split('\n')[0]);
+    }
+  }
+
+  return keep({ type: 'oidc', issuer, clientId: await askFor(io, 'Client id', 'wilsoon-env') });
 }
 
 /**

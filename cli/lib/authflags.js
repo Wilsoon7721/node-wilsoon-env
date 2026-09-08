@@ -18,6 +18,33 @@ const FIELDS = [
 export const AUTH_TYPES = ['oidc', 'supabase'];
 
 /**
+ * Tidy an issuer into something that can actually be fetched.
+ *
+ * A bare host is what people type, and taking it literally only shows up much
+ * later as a failed discovery against a relative URL. Plain http is refused
+ * outside loopback: the token this fetches is a bearer credential.
+ */
+export function normaliseIssuer(value) {
+  const text = String(value ?? '').trim();
+
+  if (!text) throw new Error('An issuer is needed.');
+
+  let url;
+
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
+  } catch {
+    throw new Error(`"${text}" is not a URL.\n\n  Issuers look like https://id.example.com\n`);
+  }
+
+  const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1';
+
+  if (url.protocol !== 'https:' && !loopback) throw new Error(`Refusing a plain http issuer (${url.origin}).\n\n  The token it hands back is a bearer credential, so the connection has to be https.\n`);
+
+  return url.origin + url.pathname.replace(/\/+$/, '');
+}
+
+/**
  * @param {object} flags parsed CLI flags
  * @param {object|null} prior an existing auth block to build on
  * @returns {object|null} the auth block, or null when nothing asked for one
@@ -35,6 +62,8 @@ export function authFromFlags(flags, prior = null) {
   const auth = { ...(prior ?? {}), type };
 
   for (const [flag, key] of FIELDS) if (typeof flags[flag] === 'string') auth[key] = flags[flag];
+
+  if (auth.issuer) auth.issuer = normaliseIssuer(auth.issuer);
 
   if (type === 'oidc' && !auth.issuer) throw new Error('An oidc auth block needs an issuer.\n\n  Add --issuer https://issuer.example\n');
 

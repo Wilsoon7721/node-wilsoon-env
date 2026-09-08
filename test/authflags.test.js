@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authFromFlags, withIssuer } from '../cli/lib/authflags.js';
+import { authFromFlags, normaliseIssuer, withIssuer } from '../cli/lib/authflags.js';
 import { parseArgs } from '../cli/lib/args.js';
 
 const flagsOf = (line) => parseArgs(line.split(' ').filter(Boolean)).flags;
@@ -45,4 +45,22 @@ describe('withIssuer', () => {
   });
 
   it('passes null through, so callers can chain it', () => expect(withIssuer(null, 'https://abc.supabase.co')).toBe(null));
+});
+
+describe('normaliseIssuer', () => {
+  // A bare host is what people type; taking it literally only surfaces later as
+  // a failed discovery against a relative URL.
+  it('assumes https for a bare host', () => expect(normaliseIssuer('id.wilsoon.dev')).toBe('https://id.wilsoon.dev'));
+
+  it('drops a trailing slash so credentials file under one key', () => expect(normaliseIssuer('https://id.example/')).toBe('https://id.example'));
+
+  it('keeps a path, which some issuers need', () => expect(normaliseIssuer('https://example.com/auth/realms/x')).toBe('https://example.com/auth/realms/x'));
+
+  it('allows plain http on loopback, where there is no network to listen on', () => expect(normaliseIssuer('http://localhost:3000')).toBe('http://localhost:3000'));
+
+  it('refuses plain http anywhere else, since the token is a bearer credential', () => expect(() => normaliseIssuer('http://insecure.example')).toThrow(/https/));
+
+  it('refuses something that is not a URL at all', () => expect(() => normaliseIssuer('not a url')).toThrow(/not a URL/));
+
+  it('normalises whatever --issuer supplied', () => expect(authFromFlags(flagsOf('--issuer id.wilsoon.dev'))).toEqual({ type: 'oidc', issuer: 'https://id.wilsoon.dev' }));
 });
