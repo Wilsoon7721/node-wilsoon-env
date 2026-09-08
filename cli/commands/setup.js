@@ -5,10 +5,12 @@ import { CONFIG_FILENAMES, findConfig, loadConfig, schemaRef } from '../../core/
 import { KIND_IDENTITY, resolveProvider } from '../../core/provider.js';
 import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
-import { cyan, dim } from '../lib/format.js';
+import { S, cyan, dim, green } from '../lib/format.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
-import { confirm, newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { confirm, isInteractive, newPassphrase, requireInteractive } from '../lib/prompt.js';
 import { authFromFlags, withIssuer } from '../lib/authflags.js';
+import { listStores, readStore } from '../lib/stores.js';
+import { offerToSave, runWizard } from './wizard.js';
 
 const GITIGNORE_ENTRIES = ['.env', '.env.*', '!.env.example', '!.env.*.example', '.wilsoon-store/'];
 
@@ -33,6 +35,41 @@ async function ensureGitignore(dir) {
   return missing;
 }
 
+async function storeSettings(args, cwd, prior) {
+  if (typeof args.flags.store === 'string') {
+    const store = await readStore(args.flags.store);
+
+    if (!store) {
+      const names = (await listStores()).map((s) => s.name);
+      throw new Error(`No saved store called "${args.flags.store}".\n\n  ${names.length ? `Saved stores: ${names.join(', ')}` : 'You have not saved any yet - run setup with no flags to make one.'}\n`);
+    }
+
+    return { ...store, asked: false };
+  }
+
+  if (typeof args.flags.provider === 'string' || prior || !isInteractive()) return null;
+
+  return { ...(await runWizard({ cwd })), asked: true };
+}
+
+/** Prove the store answers */
+async function reachable(provider, project) {
+  console.log('');
+
+  try {
+    await provider.list(project);
+    note(`${green(S.ok)} Reached ${cyan(provider.describe?.() ?? provider.name)}`);
+
+    return true;
+  } catch (err) {
+    console.log('');
+    warn(`Could not reach the store: ${err.message}`);
+    note('Nothing was written, and no key was generated. Fix the above and run setup again.');
+
+    return false;
+  }
+}
+
 export async function setup(args) {
   const cwd = args.flags.cwd ?? process.cwd();
   const existing = await findConfig(cwd);
@@ -45,10 +82,13 @@ export async function setup(args) {
 
   // Existing config?
   const prior = existing ? (await loadConfig(cwd))?.config : null;
-  const project = args.flags.project ?? prior?.project ?? path.basename(cwd);
-  const providerName = args.flags.provider ?? prior?.provider ?? 'local';
+  const chosen = await storeSettings(args, cwd, prior);
+  const wizard = chosen?.asked ? chosen : null;
 
-  const options = { ...(prior?.options ?? {}) };
+  const project = args.flags.project ?? chosen?.project ?? prior?.project ?? path.basename(cwd);
+  const providerName = args.flags.provider ?? chosen?.provider ?? prior?.provider ?? 'local';
+
+  const options = { ...(prior?.options ?? {}), ...(chosen?.options ?? {}) };
   for (const [flag, key] of [
     ['path', 'path'],
     ['bucket', 'bucket'],
@@ -64,7 +104,7 @@ export async function setup(args) {
     if (typeof args.flags[flag] === 'string') options[key] = args.flags[flag];
   }
 
-  const auth = withIssuer(authFromFlags(args.flags, prior?.auth ?? null), options.url ?? process.env.SUPABASE_URL);
+  const auth = withIssuer(authFromFlags(args.flags, chosen?.auth ?? prior?.auth ?? null), options.url ?? process.env.SUPABASE_URL);
 
   heading(`Setting up ${cyan(project)}`);
   field('Provider', providerName);
@@ -84,6 +124,9 @@ export async function setup(args) {
   };
 
   const provider = await resolveProvider(config, cwd);
+  if (chosen && !(await reachable(provider, project))) return 1;
+  if (wizard && !wizard.saved) await offerToSave({ provider: providerName, options, auth });
+
   const me = args.flags.name ?? 'me';
   const previous = prior?.recipients?.find((r) => r.name === me);
   const storedIdentity = previous?.keyid ? await provider.get({ project, kind: KIND_IDENTITY, name: previous.keyid }).catch(() => null) : null;

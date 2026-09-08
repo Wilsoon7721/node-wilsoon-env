@@ -118,10 +118,10 @@ export async function newPassphrase({ min = 8 } = {}) {
 }
 
 /* Read one visible line - for things that are not secret: an email, a code */
-export async function ask(question) {
-  requireInteractive('This');
+export async function ask(question, { input = process.stdin, output = process.stdout } = {}) {
+  requireInteractive('This', input, output);
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = createInterface({ input, output });
 
   try {
     return (await rl.question(question)).trim();
@@ -130,10 +130,10 @@ export async function ask(question) {
   }
 }
 
-export async function confirm(question, { fallback = false } = {}) {
-  if (!isInteractive()) return fallback;
+export async function confirm(question, { fallback = false, input = process.stdin, output = process.stdout } = {}) {
+  if (!isInteractive(input, output)) return fallback;
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = createInterface({ input, output });
 
   try {
     const answer = (await rl.question(`${question} ${dim('[y/N]')} `)).trim().toLowerCase();

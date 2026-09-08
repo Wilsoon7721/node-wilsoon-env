@@ -55,7 +55,30 @@ Requires Node 22.12 or newer.
 npx @wilsoon/env setup
 ```
 
-This generates an X25519 identity keypair, encrypts the private half with a passphrase you choose, stores it, writes `wilsoon-env.config.json`, and adds `.env*` to your `.gitignore`.
+This asks where your secrets should live, and only the questions that store actually needs:
+
+```
+  Where should encrypted secrets be stored?
+
+  ❯ 1  This machine only    no account, good for trying it out
+    2  Supabase             Postgres, row level security
+    3  S3-compatible        AWS, Cloudflare R2, MinIO, Backblaze
+    4  Cloudflare KV        eventually consistent - read the caveat first
+    5  AWS Secrets Manager  what production already reads
+    6  MongoDB              needs the mongodb driver installed
+```
+
+Arrow keys move, Enter picks, or press the number. It never asks for a credential: the config it writes is meant to be committed, so anything secret is named as an environment variable for you to set instead. Before it generates a key it checks the store actually answers, so a wrong table or a missing credential costs you nothing.
+
+At the end it offers to remember the store. Every project after that is one question:
+
+```bash
+npx @wilsoon/env setup --store personal
+```
+
+Saved stores live beside your credentials, not in any repository. Pass `--provider` (or any store flag) to skip the questions entirely, which is what CI does — with no terminal attached it never prompts at all.
+
+Either way you end up with an X25519 identity keypair whose private half is encrypted with a passphrase you choose, a `wilsoon-env.config.json`, and `.env*` added to your `.gitignore`.
 
 ```bash
 npx @wilsoon/env push

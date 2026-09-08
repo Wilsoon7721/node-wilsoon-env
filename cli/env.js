@@ -45,7 +45,8 @@ const HELP = `
     --help         Show this
     --version      Print the version
 
-  ${dim('Where the store is')} ${dim('(setup)')}
+  ${dim('Where the store is')} ${dim('(setup - or run setup with no flags and it will ask)')}
+    --store <name>           A store you saved earlier
     --path, --bucket, --endpoint, --region, --prefix, --profile
     --url, --anon-key, --table, --schema
 
