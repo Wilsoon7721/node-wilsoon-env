@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, readdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -43,6 +43,49 @@ describe('package manifest', () => {
 
   it('ships every path listed in files', async () => {
     for (const entry of pkg.files) await expect(exists(entry), `files -> ${entry}`).resolves.toBe(true);
+  });
+
+  /*
+    `files` is an allowlist, so a directory nobody remembered to add is simply
+    absent from the tarball - and nothing here fails until an import runs on
+    somebody else's machine. `auth` was missing for two releases exactly that way.
+  */
+  it('ships every directory the shipped code imports from', async () => {
+    const roots = [];
+
+    for (const entry of pkg.files) {
+      const found = await stat(path.join(root, entry)).catch(() => null);
+      if (found?.isDirectory()) roots.push(entry);
+    }
+
+    const seen = new Set();
+
+    const walk = async (dir) => {
+      for (const item of await readdir(path.join(root, dir), { withFileTypes: true })) {
+        const rel = path.posix.join(dir, item.name);
+
+        if (item.isDirectory()) await walk(rel);
+        else if (item.name.endsWith('.js')) seen.add(rel);
+      }
+    };
+
+    for (const entry of roots) await walk(entry);
+    if (pkg.main) seen.add(pkg.main.replace(/^\.\//, ''));
+
+    const missing = [];
+
+    for (const file of seen) {
+      const source = await readFile(path.join(root, file), 'utf8');
+
+      for (const [, target] of source.matchAll(/from '(\.[^']+)'/g)) {
+        const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(file), target));
+        const top = resolved.split('/')[0];
+
+        if (!pkg.files.includes(top) && !pkg.files.includes(resolved)) missing.push(`${file} imports ${target}, but "${top}" is not in files`);
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 
   it('has the licence file its metadata claims', async () => {
