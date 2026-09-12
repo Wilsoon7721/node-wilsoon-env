@@ -1,14 +1,14 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { create as createSupabase } from '../providers/supabase.js';
-import { ConflictError } from '../core/provider.js';
 import { writeCredential } from '../auth/tokens.js';
-import { generateIdentity } from '../core/crypto/identity.js';
 import { seal } from '../core/crypto/envelope.js';
+import { generateIdentity } from '../core/crypto/identity.js';
+import { ConflictError } from '../core/provider.js';
+import { create as createSupabase } from '../providers/supabase.js';
 
 /*
   A PostgREST-shaped server over real HTTP, backed by an array of rows. The point

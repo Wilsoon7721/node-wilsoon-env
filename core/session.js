@@ -1,8 +1,8 @@
 import { loadConfig } from './config.js';
-import { KIND_ENV, KIND_IDENTITY, closeProvider, resolveProvider } from './provider.js';
 import { decodePrivate, decodePublic, keyIdOf, openIdentity, publicOf } from './crypto/identity.js';
 import { matchesAny } from './dotenv.js';
 import { accountFor, forget, recall, remember } from './keychain.js';
+import { closeProvider, KIND_ENV, KIND_IDENTITY, resolveProvider } from './provider.js';
 
 const opened = new Set();
 

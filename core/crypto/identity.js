@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes } from 'node:crypto';
-import { DEFAULT_KDF, SALT_LEN, deriveKey } from './kdf.js';
-import { IDENTITY_BLOB_LEN, IDENTITY_HEADER_LEN, KEYID_LEN, NONCE_LEN, TAG_LEN, X25519_LEN, packIdentityHeader, unpackIdentityHeader } from './header.js';
+import { IDENTITY_BLOB_LEN, IDENTITY_HEADER_LEN, KEYID_LEN, NONCE_LEN, packIdentityHeader, TAG_LEN, unpackIdentityHeader, X25519_LEN } from './header.js';
+import { DEFAULT_KDF, deriveKey, SALT_LEN } from './kdf.js';
 
 const PKCS8_X25519_PREFIX = Buffer.from('302e020100300506032b656e04220420', 'hex');
 

@@ -1,6 +1,6 @@
+import { spawn } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
 
 /**
  * 2 CLI login methods, talks to the issuer directly with no client secret needed
@@ -28,10 +28,10 @@ function sameState(a, b) {
 }
 
 const PAGE = (title, detail) =>
-  `<!doctype html><meta charset="utf-8"><title>wilsoon-env</title>` +
-  `<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;display:grid;place-items:center;height:100vh;background:#0b0b0c;color:#e8e8ea}` +
-  `div{max-width:26rem;padding:2rem;text-align:center}p{opacity:.7;font-size:.95em}</style>` +
-  `<div><h1>${title}</h1><p>${detail}</p></div>`;
+  `<!doctype html><meta charset="utf-8"><title>wilsoon-env</title>`
+  + `<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;display:grid;place-items:center;height:100vh;background:#0b0b0c;color:#e8e8ea}`
+  + `div{max-width:26rem;padding:2rem;text-align:center}p{opacity:.7;font-size:.95em}</style>`
+  + `<div><h1>${title}</h1><p>${detail}</p></div>`;
 
 /** Bind the loopback listener before the browser is opened so the port in the redirect URI is known */
 export async function listen({ timeoutMs = 5 * 60 * 1000, state } = {}) {
@@ -277,9 +277,8 @@ export async function deviceAuthorize(auth, { open = openBrowser, onPrompt, slee
     } else if (error === 'slow_down') every = Math.max(every + 5, Number(polled.body?.interval) || 0);
     else if (error === 'expired_token') throw new Error('That sign-in request expired before it was approved.\n\n  Run login again to get a fresh code.\n');
     else if (error === 'access_denied') throw new Error('The sign-in was refused.');
-    else {
+    else
       throw refusal(polled, 'the device exchange');
-    }
 
     if (Date.now() > ceiling) throw new Error('Gave up waiting for the identity provider.\n\n  It never reported the request as approved, refused or expired. Run login again.\n');
   }

@@ -7,18 +7,18 @@
  * internal - reach into core/ at your own risk.
  */
 
-export { seal, open, recipientsOf } from './core/crypto/envelope.js';
+export { open, recipientsOf, seal } from './core/crypto/envelope.js';
 
-export { generateIdentity, sealIdentity, openIdentity, publicOf, keyIdOf, encodePublic, decodePublic, encodePrivate, decodePrivate } from './core/crypto/identity.js';
+export { decodePrivate, decodePublic, encodePrivate, encodePublic, generateIdentity, keyIdOf, openIdentity, publicOf, sealIdentity } from './core/crypto/identity.js';
 
 export { DEFAULT_KDF, deriveKey } from './core/crypto/kdf.js';
 
 export { FORMAT, KIND_IDENTITY as BLOB_KIND_IDENTITY, KIND_PAYLOAD as BLOB_KIND_PAYLOAD } from './core/crypto/header.js';
 
-export { KIND_ENV, KIND_IDENTITY, ConflictError, assertRef, resolveProvider } from './core/provider.js';
+export { assertRef, ConflictError, KIND_ENV, KIND_IDENTITY, resolveProvider } from './core/provider.js';
 
-export { findConfig, loadConfig, CONFIG_FILENAMES, PACKAGE_KEY } from './core/config.js';
+export { CONFIG_FILENAMES, findConfig, loadConfig, PACKAGE_KEY } from './core/config.js';
 
-export { discover, isSyncable, parse, serialise, diff, DEFAULT_INCLUDE, DEFAULT_EXCLUDE } from './core/dotenv.js';
+export { DEFAULT_EXCLUDE, DEFAULT_INCLUDE, diff, discover, isSyncable, parse, serialise } from './core/dotenv.js';
 
-export { openSession, unlockIdentity, findIdentity, recipientKeys, recipientsFor } from './core/session.js';
+export { findIdentity, openSession, recipientKeys, recipientsFor, unlockIdentity } from './core/session.js';

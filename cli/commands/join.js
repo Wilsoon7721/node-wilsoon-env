@@ -2,12 +2,12 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { loadConfig, schemaRef } from '../../core/config.js';
+import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { KIND_IDENTITY } from '../../core/provider.js';
 import { openSession } from '../../core/session.js';
-import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { cyan, dim } from '../lib/format.js';
-import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 import { newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 
 /** Add your own key to a project someone else set up. */
 export async function join(args) {
@@ -66,11 +66,11 @@ export async function join(args) {
         pubkey,
         ...(args.flags.files
           ? {
-              files: String(args.flags.files)
-                .split(',')
-                .map((f) => f.trim())
-                .filter(Boolean)
-            }
+            files: String(args.flags.files)
+              .split(',')
+              .map((f) => f.trim())
+              .filter(Boolean)
+          }
           : {})
       }
     ]

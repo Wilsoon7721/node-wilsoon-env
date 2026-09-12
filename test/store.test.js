@@ -1,14 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { DEFAULT_EXCLUDE, diff, discover, isSyncable, parse, serialise } from '../core/dotenv.js';
 import { findConfig, loadConfig } from '../core/config.js';
-import { ConflictError, assertRef, resolveProvider } from '../core/provider.js';
-import { create as createLocal } from '../providers/local.js';
-import { generateIdentity } from '../core/crypto/identity.js';
 import { seal } from '../core/crypto/envelope.js';
+import { generateIdentity } from '../core/crypto/identity.js';
+import { DEFAULT_EXCLUDE, diff, discover, isSyncable, parse, serialise } from '../core/dotenv.js';
+import { assertRef, ConflictError, resolveProvider } from '../core/provider.js';
+import { create as createLocal } from '../providers/local.js';
 
 let dir;
 
@@ -18,9 +18,8 @@ afterEach(async () => await rm(dir, { recursive: true, force: true }));
 
 describe('dotenv discovery', () => {
   it('finds env files and skips examples, backups and ciphertext', async () => {
-    for (const name of ['.env', '.env.local', '.env.production', '.env.example', '.env.production.example', '.env.enc', '.env.bak', 'README.md']) {
+    for (const name of ['.env', '.env.local', '.env.production', '.env.example', '.env.production.example', '.env.enc', '.env.bak', 'README.md'])
       await writeFile(path.join(dir, name), 'A=1\n');
-    }
 
     expect(await discover(dir)).toEqual(['.env', '.env.local', '.env.production']);
   });

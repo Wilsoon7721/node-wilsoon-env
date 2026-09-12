@@ -36,10 +36,12 @@ const OPTIONAL = {
 };
 
 export function assertRef({ project, kind, name }) {
-  for (const [label, value] of [
-    ['project', project],
-    ['name', name]
-  ]) {
+  for (
+    const [label, value] of [
+      ['project', project],
+      ['name', name]
+    ]
+  ) {
     if (typeof value !== 'string' || !value) throw new Error(`A blob reference needs a ${label}.`);
 
     if (value === '.' || value === '..' || /[/\\]/.test(value) || value.includes('\0')) throw new Error(`Refusing "${value}" as a ${label}: it would escape the store.`);

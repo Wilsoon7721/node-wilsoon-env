@@ -1,11 +1,11 @@
-import { openSession } from '../../core/session.js';
 import { authorize, deviceAuthorize, supportsDevice } from '../../auth/oidc.js';
 import { requestOtp, signInWithPassword, verifyOtp } from '../../auth/supabase.js';
 import { accessTokenFor, readCredential, writeCredential } from '../../auth/tokens.js';
-import { bold, cyan, dim, green, yellow } from '../lib/format.js';
-import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
-import { ask, isInteractive, password as promptPassword, requireInteractive } from '../lib/prompt.js';
+import { openSession } from '../../core/session.js';
 import { authFromFlags, withIssuer } from '../lib/authflags.js';
+import { bold, cyan, dim, green, yellow } from '../lib/format.js';
+import { ask, isInteractive, password as promptPassword, requireInteractive } from '../lib/prompt.js';
+import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 
 /** Both strategies are stored the same way */
 async function storeCredential(auth, result) {
@@ -132,13 +132,13 @@ export async function signIn(auth, args, { url, anonKey } = {}) {
   const result = useDevice
     ? await deviceAuthorize(auth, { onPrompt: devicePrompt })
     : await authorize(auth, {
-        onUrl: (opened) => {
-          note('Approve the request in the browser window that just opened.');
-          note('If it did not open, use this URL:');
-          console.log(`  ${cyan(opened)}`);
-          console.log('');
-        }
-      });
+      onUrl: (opened) => {
+        note('Approve the request in the browser window that just opened.');
+        note('If it did not open, use this URL:');
+        console.log(`  ${cyan(opened)}`);
+        console.log('');
+      }
+    });
 
   await storeCredential(auth, result);
 

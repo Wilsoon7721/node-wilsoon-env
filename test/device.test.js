@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createServer } from 'node:http';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { DEVICE_GRANT, deviceAuthorize, endpoints, supportsDevice } from '../auth/oidc.js';
 

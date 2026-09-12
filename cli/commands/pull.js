@@ -1,14 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { diff, isSyncable } from '../../core/dotenv.js';
-import { openSession, unlockIdentity } from '../../core/session.js';
 import { open } from '../../core/crypto/envelope.js';
+import { diff, isSyncable } from '../../core/dotenv.js';
 import { KIND_ENV } from '../../core/provider.js';
+import { openSession, unlockIdentity } from '../../core/session.js';
 import { lastSeen, remember } from '../../core/state.js';
 import { cyan, dim, green, plural, red, yellow } from '../lib/format.js';
-import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 import { confirm, password } from '../lib/prompt.js';
+import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 async function localFile(dir, name) {
   try {

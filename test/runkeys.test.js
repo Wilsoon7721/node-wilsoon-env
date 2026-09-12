@@ -1,17 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setup } from '../cli/commands/setup.js';
-import { push } from '../cli/commands/push.js';
-import { pull } from '../cli/commands/pull.js';
 import { keys } from '../cli/commands/keys.js';
+import { pull } from '../cli/commands/pull.js';
+import { push } from '../cli/commands/push.js';
 import { run } from '../cli/commands/run.js';
+import { setup } from '../cli/commands/setup.js';
 import { loadConfig } from '../core/config.js';
-import { create as createLocal } from '../providers/local.js';
-import { decodePrivate, encodePublic, generateIdentity } from '../core/crypto/identity.js';
 import { open, recipientsOf } from '../core/crypto/envelope.js';
+import { decodePrivate, encodePublic, generateIdentity } from '../core/crypto/identity.js';
+import { create as createLocal } from '../providers/local.js';
 
 const PASSPHRASE = 'a sufficiently long passphrase';
 const PROD = 'DATABASE_URL=postgres://prod/db\nSTRIPE_SECRET_KEY=sk_live_xyz\n';

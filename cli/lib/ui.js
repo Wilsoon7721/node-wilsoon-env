@@ -1,4 +1,4 @@
-import { S, cyan, dim, green, red, yellow } from './format.js';
+import { cyan, dim, green, red, S, yellow } from './format.js';
 
 export function command(text) {
   return cyan(`npx @wilsoon/env ${text}`);

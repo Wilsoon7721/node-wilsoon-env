@@ -1,14 +1,14 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { writeFile } from 'node:fs/promises';
 import { refresh, requestOtp, signInWithPassword, verifyOtp } from '../auth/supabase.js';
 import { accessTokenFor, readCredential, writeCredential } from '../auth/tokens.js';
-import { create as createSupabase } from '../providers/supabase.js';
 import { loadConfig } from '../core/config.js';
-import { writeFile } from 'node:fs/promises';
+import { create as createSupabase } from '../providers/supabase.js';
 
 /*
   A GoTrue-shaped server over real HTTP.

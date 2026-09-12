@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { seal } from '../core/crypto/envelope.js';
+import { generateIdentity } from '../core/crypto/identity.js';
+import { ConflictError } from '../core/provider.js';
 import { amzDate, encodePath, sign, uriEncode } from '../providers/lib/sigv4.js';
 import { create as createS3 } from '../providers/s3.js';
-import { ConflictError } from '../core/provider.js';
-import { generateIdentity } from '../core/crypto/identity.js';
-import { seal } from '../core/crypto/envelope.js';
 
 const CREDS = { accessKeyId: 'AKIDEXAMPLE', secretAccessKey: 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY' };
 const VECTOR_DATE = new Date(Date.UTC(2015, 7, 30, 12, 36, 0));

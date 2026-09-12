@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseArgs } from './lib/args.js';
-import { bold, cyan, dim, red } from './lib/format.js';
+import { bold, cyan, dim, red, S } from './lib/format.js';
 import { command } from './lib/ui.js';
 
 const COMMANDS = {
@@ -38,24 +38,80 @@ const HELP = `
   ${cyan('logout')}    Forget cached keys and tokens on this machine
 
   ${dim('Options')}
-    --as <name>    Which identity to unlock, when a store holds several
-    --no-cache     Do not read or write the keychain
-    --force        Skip confirmations and overwrite
-    --yes          Answer yes to prompts
-    --help         Show this
-    --version      Print the version
+    --as <name>      Which identity to unlock, when a store holds several
+    --store <name>   Set up with a store you saved earlier
+    --no-cache       Do not read or write the keychain
+    --force          Skip confirmations and overwrite
+    --yes            Answer yes to prompts
+    --help           Show this
+    --version        Print the version
 
-  ${dim('Where the store is')} ${dim('(setup - or run setup with no flags and it will ask)')}
-    --store <name>           A store you saved earlier
-    --path, --bucket, --endpoint, --region, --prefix, --profile
-    --url, --anon-key, --table, --schema
-
-  ${dim('Who you are to it')} ${dim('(setup, and login before a config exists)')}
-    --auth <oidc|supabase>   How the store decides who you are
-    --issuer <url>           Issuer base URL, for --auth oidc
-    --client-id <id>         Public client id. No secret
+  ${dim('Run setup with no flags and it will ask you what it needs.')}
+  ${dim(`Scripting it instead? ${command('setup --unattended --help')}`)}
 
   ${dim('Run a command with specific files:')}  ${command('pull .env.production')}
+`;
+
+/*
+  Kept out of the main help on purpose. Someone meeting this package does not
+  need twenty provider settings; they need to know that setup will ask. These
+  exist for CI and for people who already know what they want, and naming
+  --unattended is how you say which of those you are.
+*/
+const UNATTENDED_HELP = `
+  ${bold('setup --unattended')} ${dim('- supply the configuration instead of being asked')}
+
+  ${dim('Nothing below is accepted without --unattended. Without it, setup asks.')}
+
+  ${dim('Which store')}
+    --provider <name>        local, supabase, s3, kv, aws, mongodb
+
+  ${dim('local')}
+    --path <dir>             Where the store lives            ${dim('[.wilsoon-store]')}
+
+  ${dim('s3, and anything S3-compatible')}
+    --bucket <name>          Required
+    --endpoint <url>         Leave unset for AWS S3
+    --region <name>          ${dim('[auto with an endpoint, else us-east-1]')}
+    --prefix <path>          Key prefix inside the bucket
+    --profile <name>         Which ~/.aws/credentials profile
+    ${dim('Credentials: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY')}
+
+  ${dim('supabase')}
+    --url <url>              Project URL
+    --anon-key <key>         Publishable key. Safe to commit
+    --table <name>           ${dim('[wilsoon_env]')}
+    --schema <name>          ${dim('[public]')} ${dim('- must be listed under Exposed Schemas')}
+    ${dim('Or a machine credential: SUPABASE_SERVICE_ROLE_KEY (bypasses RLS project-wide)')}
+
+  ${dim('kv')}
+    --account-id <id>
+    --namespace-id <id>
+    ${dim('Credentials: CLOUDFLARE_API_TOKEN')}
+
+  ${dim('aws')}
+    --region <name>          ${dim('[us-east-1]')}
+    --prefix <name>          Secret name prefix               ${dim('[wenv/]')}
+    ${dim('Credentials: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY')}
+
+  ${dim('mongodb')}
+    --db <name>              ${dim('[wilsoon_env]')}
+    --collection <name>      ${dim('[blobs]')}
+    ${dim('Credentials: MONGODB_URI')}
+
+  ${dim('Who the store thinks you are')} ${dim('(supabase only - nothing else has users)')}
+    --auth <oidc|supabase>
+    --issuer <url>           For --auth oidc
+    --client-id <id>         What you registered this CLI as. No secret
+    --scope <scope>          ${dim('[openid email offline_access]')}
+
+  ${dim('Also useful when scripting')}
+    --project <name>         Namespace in the store           ${dim('[directory name]')}
+    --name <name>            What to call your own key        ${dim('[me]')}
+    ${dim('WILSOON_ENV_PASSPHRASE so nothing has to be typed')}
+
+  ${dim('Example')}
+    ${command('setup --unattended --provider s3 --bucket my-secrets --endpoint https://xyz.r2.cloudflarestorage.com')}
 `;
 
 async function version() {
@@ -70,6 +126,11 @@ async function main(argv) {
 
   if (args.flags.version) {
     console.log(await version());
+    return 0;
+  }
+
+  if (args.flags.help && args.flags.unattended) {
+    console.log(UNATTENDED_HELP);
     return 0;
   }
 
@@ -101,7 +162,7 @@ main(process.argv.slice(2))
   .then((code) => (process.exitCode = code ?? 0))
   .catch((err) => {
     console.error('');
-    console.error(`  ${red('✗')} ${err.message}`);
+    console.error(`  ${red(S.bad)} ${err.message}`);
     if (process.env.WILSOON_ENV_DEBUG) console.error(err.stack);
 
     console.error('');

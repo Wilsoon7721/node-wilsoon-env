@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { create as createKv } from '../providers/kv.js';
-import { create as createSm } from '../providers/aws-sm.js';
-import { ConflictError, resolveProvider } from '../core/provider.js';
-import { generateIdentity } from '../core/crypto/identity.js';
 import { seal } from '../core/crypto/envelope.js';
+import { generateIdentity } from '../core/crypto/identity.js';
+import { ConflictError, resolveProvider } from '../core/provider.js';
+import { create as createSm } from '../providers/aws-sm.js';
+import { create as createKv } from '../providers/kv.js';
 
 const me = generateIdentity();
 const ref = { project: 'demo', kind: 'env', name: '.env.production' };

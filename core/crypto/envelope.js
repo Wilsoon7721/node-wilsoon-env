@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, diffieHellman, generateKeyPairSync, hkdfSync, randomBytes } from 'node:crypto';
+import { bodyAad, DEK_LEN, KEYID_LEN, MAX_SLOTS, NONCE_LEN, packPayloadHeader, PAYLOAD_HEADER_LEN, SLOT_LEN, slotAad, TAG_LEN, unpackPayloadHeader, X25519_LEN } from './header.js';
 import { keyIdOf, privateFromRaw, publicFromRaw, publicOf, rawPublic } from './identity.js';
-import { DEK_LEN, KEYID_LEN, MAX_SLOTS, NONCE_LEN, PAYLOAD_HEADER_LEN, SLOT_LEN, TAG_LEN, X25519_LEN, bodyAad, packPayloadHeader, slotAad, unpackPayloadHeader } from './header.js';
 
 // Envelope encryption: one random key encrypts the file, and that key is wrapped once per recipient
 const WRAP_INFO = Buffer.from('wilsoon-env/v1/wrap', 'ascii');

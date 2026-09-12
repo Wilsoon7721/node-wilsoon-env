@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setup } from '../cli/commands/setup.js';
-import { push } from '../cli/commands/push.js';
 import { pull } from '../cli/commands/pull.js';
+import { push } from '../cli/commands/push.js';
+import { setup } from '../cli/commands/setup.js';
 import { status } from '../cli/commands/status.js';
 import { loadConfig } from '../core/config.js';
-import { create as createLocal } from '../providers/local.js';
 import { encodePublic, generateIdentity } from '../core/crypto/identity.js';
+import { create as createLocal } from '../providers/local.js';
 
 /*
   A conflict needs two machines pushing at once, which a single test process
@@ -271,4 +271,26 @@ describe('errors', () => {
     expect(await pull(args())).toBe(1);
     expect(logs.join('\n')).toMatch(/Nothing stored/);
   });
+});
+
+/*
+  The flags exist for scripting, and they are the reason --help used to open with
+  twenty provider settings. Requiring --unattended is what keeps them out of the
+  way of somebody meeting the package, so it is worth a test.
+*/
+describe('store flags are gated behind --unattended', () => {
+  it('refuses a provider flag on its own, and says what to do instead', async () => await expect(setup(args({ provider: 's3', bucket: 'things' }))).rejects.toThrow(/--provider, --bucket are only accepted with --unattended/));
+
+  it('points at both ways out', async () => await expect(setup(args({ url: 'https://x.supabase.co' }))).rejects.toThrow(/setup with no flags|--unattended --help/));
+
+  it('accepts them once --unattended is spelled out', async () => {
+    expect(await setup(args({ unattended: true, provider: 'local', path: '.store', project: 'gated' }))).toBe(0);
+
+    const written = JSON.parse(await readFile(path.join(dir, 'wilsoon-env.config.json'), 'utf8'));
+
+    expect(written.provider).toBe('local');
+    expect(written.options.path).toBe('.store');
+  });
+
+  it('leaves ungated flags working', async () => expect(await setup(args({ project: 'ungated' }))).toBe(0));
 });

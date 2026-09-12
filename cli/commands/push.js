@@ -1,15 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { discover } from '../../core/dotenv.js';
-import { openSession, recipientKeys, recipientsFor } from '../../core/session.js';
 import { recipientsOf, seal } from '../../core/crypto/envelope.js';
 import { keyIdOf } from '../../core/crypto/identity.js';
+import { discover } from '../../core/dotenv.js';
 import { ConflictError, WEAK_CAS_WARNING } from '../../core/provider.js';
+import { openSession, recipientKeys, recipientsFor } from '../../core/session.js';
 import { remember } from '../../core/state.js';
 import { cyan, dim, plural, yellow } from '../lib/format.js';
-import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 import { confirm } from '../lib/prompt.js';
+import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 // Adding a recipient should inform user that it gives access to secrets, and the config only takes place on next push
 async function confirmNewRecipients(session, recipients, files) {
@@ -18,7 +18,7 @@ async function confirmNewRecipients(session, recipients, files) {
   const known = new Set();
   for (const name of files) {
     const stored = await session.provider.get(session.envRef(name));
-    if (stored) for (const keyid of recipientsOf(stored.blob)) known.add(keyid.toString('hex'));
+    if (stored) { for (const keyid of recipientsOf(stored.blob)) known.add(keyid.toString('hex')); }
   }
 
   if (!known.size) return true;

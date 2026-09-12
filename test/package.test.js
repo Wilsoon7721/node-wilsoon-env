@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { access, readFile, readdir, stat } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { access, readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 
 /*
   The package manifest makes promises that nothing else checks. `main` and
@@ -97,9 +97,8 @@ describe('package manifest', () => {
   });
 
   it('declares every optional peer as optional, so npx stays small', () => {
-    for (const peer of Object.keys(pkg.peerDependencies ?? {})) {
+    for (const peer of Object.keys(pkg.peerDependencies ?? {}))
       expect(pkg.peerDependenciesMeta?.[peer]?.optional, `${peer} must be optional`).toBe(true);
-    }
   });
 
   it('keeps the runtime dependency list to what the crypto needs', () => expect(Object.keys(pkg.dependencies)).toEqual(['hash-wasm']));
@@ -126,16 +125,14 @@ describe('public API', () => {
   it('exports the surface the README will document', async () => {
     const api = await import(path.join(root, 'index.js'));
 
-    for (const name of ['seal', 'open', 'generateIdentity', 'sealIdentity', 'openIdentity', 'encodePublic', 'decodePublic', 'encodePrivate', 'decodePrivate', 'resolveProvider', 'loadConfig', 'openSession', 'parse', 'ConflictError']) {
+    for (const name of ['seal', 'open', 'generateIdentity', 'sealIdentity', 'openIdentity', 'encodePublic', 'decodePublic', 'encodePrivate', 'decodePrivate', 'resolveProvider', 'loadConfig', 'openSession', 'parse', 'ConflictError'])
       expect(api[name], `index.js should export ${name}`).toBeDefined();
-    }
   });
 
   it('does not leak the CLI into the library entry point', async () => {
     const api = await import(path.join(root, 'index.js'));
 
-    for (const name of ['push', 'pull', 'setup', 'status', 'run', 'keys']) {
+    for (const name of ['push', 'pull', 'setup', 'status', 'run', 'keys'])
       expect(api[name], `${name} is a command, not library API`).toBeUndefined();
-    }
   });
 });

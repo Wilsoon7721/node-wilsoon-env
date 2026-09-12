@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setup } from '../cli/commands/setup.js';
-import { push } from '../cli/commands/push.js';
-import { pull } from '../cli/commands/pull.js';
 import { logout } from '../cli/commands/logout.js';
+import { pull } from '../cli/commands/pull.js';
+import { push } from '../cli/commands/push.js';
+import { setup } from '../cli/commands/setup.js';
 import { loadConfig } from '../core/config.js';
 
 /*

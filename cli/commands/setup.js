@@ -1,18 +1,19 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { readCredential } from '../../auth/tokens.js';
 import { CONFIG_FILENAMES, findConfig, loadConfig, schemaRef } from '../../core/config.js';
-import { KIND_IDENTITY, resolveProvider } from '../../core/provider.js';
 import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
-import { S, cyan, dim, green } from '../lib/format.js';
-import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
-import { confirm, isInteractive, newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { KIND_IDENTITY, resolveProvider } from '../../core/provider.js';
 import { authFromFlags, withIssuer } from '../lib/authflags.js';
+import { projectRef, runSql, supabaseDdl } from '../lib/ddl.js';
+import { cyan, dim, green, S } from '../lib/format.js';
+import { confirm, isInteractive, newPassphrase, requireInteractive } from '../lib/prompt.js';
 import { listStores, readStore } from '../lib/stores.js';
-import { offerToSave, runWizard } from './wizard.js';
+import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 import { signIn } from './login.js';
-import { readCredential } from '../../auth/tokens.js';
+import { offerToSave, runWizard } from './wizard.js';
 
 const GITIGNORE_ENTRIES = ['.env', '.env.*', '!.env.example', '!.env.*.example', '.wilsoon-store/'];
 
@@ -37,7 +38,31 @@ async function ensureGitignore(dir) {
   return missing;
 }
 
+/*
+  Every setting below can be typed on the command line, and none of it belongs in
+  --help. Gating them behind --unattended keeps the first thing a stranger reads
+  down to "setup will ask you", and makes a scripted run say out loud that it is
+  one - rather than being inferred from whether a terminal happened to be there.
+*/
+const UNATTENDED_ONLY = ['provider', 'path', 'bucket', 'endpoint', 'region', 'prefix', 'profile', 'url', 'anon-key', 'table', 'schema', 'account-id', 'namespace-id', 'db', 'collection', 'auth', 'issuer', 'client-id', 'scope'];
+
+function assertUnattended(flags) {
+  if (flags.unattended) return;
+
+  const used = UNATTENDED_ONLY.filter((flag) => flags[flag] !== undefined).map((flag) => `--${flag}`);
+
+  if (!used.length) return;
+
+  throw new Error(
+    `${used.join(', ')} ${
+      used.length === 1 ? 'is' : 'are'
+    } only accepted with --unattended.\n\n  Run setup with no flags and it will ask you what it needs.\n  Or add --unattended to what you just ran, to supply it yourself.\n\n  For everything --unattended accepts: npx @wilsoon/env setup --unattended --help\n`
+  );
+}
+
 async function storeSettings(args, cwd, prior) {
+  assertUnattended(args.flags);
+
   if (typeof args.flags.store === 'string') {
     const store = await readStore(args.flags.store);
 
@@ -49,7 +74,7 @@ async function storeSettings(args, cwd, prior) {
     return { ...store, asked: false };
   }
 
-  if (typeof args.flags.provider === 'string' || prior || !isInteractive()) return null;
+  if (args.flags.unattended || prior || !isInteractive()) return null;
 
   return { ...(await runWizard({ cwd })), asked: true };
 }
@@ -73,6 +98,36 @@ async function ensureSignedIn(auth, options, args) {
   }
 
   await signIn(auth, args, { url: options.url, anonKey: options.anonKey });
+}
+
+/*
+  A missing table is the one failure with an exact remedy, so it gets one instead
+  of a shrug. Running it needs a personal access token, which is an account-wide
+  credential - so that path opens only if one is already in the environment, and
+  is never asked for.
+*/
+async function offerTheTable(providerName, options) {
+  if (providerName !== 'supabase') return;
+
+  const sql = supabaseDdl({ table: options.table, schema: options.schema });
+  const ref = projectRef(options.url ?? process.env.SUPABASE_URL);
+  const token = process.env.SUPABASE_ACCESS_TOKEN;
+
+  console.log('');
+  note('A data API cannot create tables, so this part is SQL. Run it in the dashboard:');
+  note(`Dashboard > SQL Editor${ref ? dim(`  (project ${ref})`) : ''}`);
+  console.log('');
+  for (const line of sql.split('\n')) console.log(`    ${dim(line)}`);
+  console.log('');
+
+  if (!ref || !token || !isInteractive()) return;
+
+  note(`${cyan('SUPABASE_ACCESS_TOKEN')} is set, which can run it for you.`);
+
+  if (!(await confirm('  Run it now?'))) return;
+
+  await runSql(ref, token, sql);
+  note(`${green(S.ok)} Table created. Run setup again.`);
 }
 
 /** Prove the store answers */
@@ -107,18 +162,24 @@ export async function setup(args) {
   const providerName = args.flags.provider ?? chosen?.provider ?? prior?.provider ?? 'local';
 
   const options = { ...(prior?.options ?? {}), ...(chosen?.options ?? {}) };
-  for (const [flag, key] of [
-    ['path', 'path'],
-    ['bucket', 'bucket'],
-    ['endpoint', 'endpoint'],
-    ['region', 'region'],
-    ['prefix', 'prefix'],
-    ['profile', 'profile'],
-    ['url', 'url'],
-    ['anon-key', 'anonKey'],
-    ['table', 'table'],
-    ['schema', 'schema']
-  ]) {
+  for (
+    const [flag, key] of [
+      ['path', 'path'],
+      ['bucket', 'bucket'],
+      ['endpoint', 'endpoint'],
+      ['region', 'region'],
+      ['prefix', 'prefix'],
+      ['profile', 'profile'],
+      ['url', 'url'],
+      ['anon-key', 'anonKey'],
+      ['table', 'table'],
+      ['schema', 'schema'],
+      ['account-id', 'accountId'],
+      ['namespace-id', 'namespaceId'],
+      ['db', 'db'],
+      ['collection', 'collection']
+    ]
+  ) {
     if (typeof args.flags[flag] === 'string') options[key] = args.flags[flag];
   }
 
@@ -151,6 +212,8 @@ export async function setup(args) {
     console.log('');
     warn(`Could not reach the store: ${err.message}`);
     note('Nothing was written, and no key was generated.');
+
+    if (err.missingTable) await offerTheTable(providerName, options);
 
     if (wizard && !wizard.saved) await offerToSave({ provider: providerName, options, auth }, {}, { question: '  Keep these answers, so the next run does not ask again?' });
 

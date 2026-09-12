@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 
-import { SCHEMA_RELATIVE, SCHEMA_URL, loadConfig, schemaRef } from '../core/config.js';
-import { DEFAULT_KDF } from '../core/crypto/kdf.js';
+import { loadConfig, SCHEMA_RELATIVE, SCHEMA_URL, schemaRef } from '../core/config.js';
 import { encodePublic, generateIdentity, keyIdOf } from '../core/crypto/identity.js';
+import { DEFAULT_KDF } from '../core/crypto/kdf.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../core/dotenv.js';
 
 /*
@@ -45,9 +45,8 @@ describe('config schema', () => {
       await writeFile(path.join(dir, 'env.config.json'), JSON.stringify({ project: 'demo', provider: 'local' }));
       const { config } = await loadConfig(dir);
 
-      for (const key of Object.keys(config)) {
+      for (const key of Object.keys(config))
         expect(schema.properties, `schema is missing "${key}"`).toHaveProperty(key);
-      }
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -92,9 +91,8 @@ describe('config schema', () => {
   it('names every built-in provider option the s3 adapter reads', () => {
     const options = schema.properties.options.properties;
 
-    for (const key of ['path', 'bucket', 'endpoint', 'region', 'prefix', 'profile', 'forcePathStyle']) {
+    for (const key of ['path', 'bucket', 'endpoint', 'region', 'prefix', 'profile', 'forcePathStyle'])
       expect(options, `schema should document options.${key}`).toHaveProperty(key);
-    }
   });
 });
 

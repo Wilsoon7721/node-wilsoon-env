@@ -1,8 +1,8 @@
 import path from 'node:path';
 
 import { discover, isSyncable } from '../../core/dotenv.js';
-import { openSession } from '../../core/session.js';
 import { KIND_ENV, KIND_IDENTITY } from '../../core/provider.js';
+import { openSession } from '../../core/session.js';
 import { lastSeen } from '../../core/state.js';
 import { cyan, dim, green, plural, yellow } from '../lib/format.js';
 import { command, field, heading, note } from '../lib/ui.js';

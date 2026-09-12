@@ -1,6 +1,6 @@
-import { ConflictError, KIND_ENV, assertRef } from '../core/provider.js';
-import { PAYLOAD_HEADER_LEN } from '../core/crypto/header.js';
 import { accessTokenFor } from '../auth/tokens.js';
+import { PAYLOAD_HEADER_LEN } from '../core/crypto/header.js';
+import { assertRef, ConflictError, KIND_ENV } from '../core/provider.js';
 
 /**
  * Supabase over PostgREST.
@@ -34,7 +34,12 @@ function failure(status, body, what) {
   if (status === 401 || status === 403)
     return new Error(`Supabase refused ${what} (HTTP ${status}).\n\n  Either you are not signed in, or row level security is hiding these rows.\n  Run "npx @wilsoon/env login" if this project uses oidc auth.\n${message ? `\n  ${message}\n` : ''}`);
 
-  if (status === 404) return new Error(`Supabase returned 404 for ${what}. Check the table name and that PostgREST exposes it.${message ? ` ${message}` : ''}`);
+  if (body?.code === 'PGRST205' || status === 404) {
+    const missing = new Error(`Supabase has no such table, so ${what} cannot work.${message ? `\n\n  ${message}\n` : ''}`);
+    missing.missingTable = true;
+
+    return missing;
+  }
 
   return new Error(`Supabase refused ${what}: HTTP ${status}${message ? ` - ${message}` : ''}`);
 }

@@ -1,7 +1,7 @@
-import { openSession } from '../../core/session.js';
-import { accountFor, describe as describeKeychain, forget } from '../../core/keychain.js';
 import { clearCredential } from '../../auth/tokens.js';
+import { accountFor, describe as describeKeychain, forget } from '../../core/keychain.js';
 import { KIND_IDENTITY } from '../../core/provider.js';
+import { openSession } from '../../core/session.js';
 import { cyan, plural } from '../lib/format.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
@@ -40,9 +40,8 @@ export async function logout(args) {
     if (await forget(accountFor(session.project, entry.name))) {
       ok(who);
       cleared++;
-    } else {
+    } else
       note(`${who} was not cached`);
-    }
   }
 
   outcome({

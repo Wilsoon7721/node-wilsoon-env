@@ -1,10 +1,10 @@
 import path from 'node:path';
 
+import { normaliseIssuer } from '../lib/authflags.js';
 import { cyan, dim } from '../lib/format.js';
-import { heading, note, warn } from '../lib/ui.js';
 import { ask, choose, confirm } from '../lib/prompt.js';
 import { listStores, saveStore } from '../lib/stores.js';
-import { normaliseIssuer } from '../lib/authflags.js';
+import { heading, note, warn } from '../lib/ui.js';
 
 const PROVIDERS = [
   { value: 'local', label: 'This machine only', hint: 'no account, good for trying it out' },
@@ -17,24 +17,26 @@ const PROVIDERS = [
 
 const pick = (io, question, choices, opts = {}) => choose(question, choices, { ...opts, ...io });
 
-async function askFor(io, question, fallback = '') {
+async function askFor(io, question, fallback = '', hint = '') {
+  if (hint) note(hint);
+
   const answer = await ask(`  ${question}${fallback ? ` ${dim(`[${fallback}]`)}` : ''}: `, io);
   return answer || fallback;
 }
 
-async function askUrl(io, question, what) {
+async function askUrl(io, question, what, hint = '') {
   for (;;) {
     try {
-      return normaliseIssuer(await askRequired(io, question, what), what);
+      return normaliseIssuer(await askRequired(io, question, what, hint), what);
     } catch (err) {
       note(err.message.split('\n')[0]);
     }
   }
 }
 
-async function askRequired(io, question, what) {
+async function askRequired(io, question, what, hint = '') {
   for (;;) {
-    const answer = await askFor(io, question);
+    const answer = await askFor(io, question, '', hint);
     if (answer) return answer;
 
     note(`${what} is needed to reach the store.`);
@@ -47,20 +49,18 @@ async function optionsFor(io, provider) {
   if (provider === 'local') return { options: { path: await askFor(io, 'Where should the store live?', '.wilsoon-store') }, secrets: [] };
 
   if (provider === 'supabase') {
-    const url = await askUrl(io, 'Supabase project URL', 'project URL');
+    const url = await askUrl(io, 'Supabase project URL', 'project URL', 'Dashboard > Project Settings > Data API > Project URL');
 
-    note('The publishable (anon) key is safe to commit - row level security is what protects the rows.');
-
-    const anonKey = await askFor(io, 'Publishable (anon) key');
-    const table = await askFor(io, 'Table', 'wilsoon_env');
-    const schema = await askFor(io, 'Schema', 'public');
+    const anonKey = await askFor(io, 'Publishable (anon) key', '', 'Same page, under Project API keys. Safe to commit - row level security is what protects the rows.');
+    const table = await askFor(io, 'Table', 'wilsoon_env', 'If it does not exist yet, setup will show you the SQL to create it.');
+    const schema = await askFor(io, 'Schema', 'public', 'Anything other than public must be listed under Settings > Data API > Exposed Schemas.');
 
     return { options: keep({ url, anonKey, table, schema: schema === 'public' ? '' : schema }), secrets: [] };
   }
 
   if (provider === 's3') {
-    const bucket = await askRequired(io, 'Bucket', 'A bucket');
-    const endpoint = await askFor(io, 'Endpoint (blank for AWS S3)');
+    const bucket = await askRequired(io, 'Bucket', 'A bucket', 'A bucket that already exists. Nothing here creates one.');
+    const endpoint = await askFor(io, 'Endpoint (blank for AWS S3)', '', 'For R2: https://<account id>.r2.cloudflarestorage.com');
 
     return {
       options: keep({ bucket, endpoint, region: await askFor(io, 'Region', endpoint ? 'auto' : 'us-east-1'), prefix: await askFor(io, 'Prefix inside the bucket') }),
@@ -70,7 +70,10 @@ async function optionsFor(io, provider) {
 
   if (provider === 'kv')
     return {
-      options: keep({ accountId: await askRequired(io, 'Cloudflare account id', 'An account id'), namespaceId: await askRequired(io, 'KV namespace id', 'A namespace id') }),
+      options: keep({
+        accountId: await askRequired(io, 'Cloudflare account id', 'An account id', 'Cloudflare dashboard, in the URL after /accounts/'),
+        namespaceId: await askRequired(io, 'KV namespace id', 'A namespace id', 'Workers & Pages > KV, next to the namespace')
+      }),
       secrets: ['CLOUDFLARE_API_TOKEN']
     };
 
@@ -82,7 +85,7 @@ async function optionsFor(io, provider) {
 async function authFor(io, provider) {
   if (provider !== 'supabase') return null;
 
-  console.log('');
+  heading(dim('How this machine proves it may fetch them'));
 
   const kind = await pick(io, 'How should this store know who you are?', [
     { value: 'oidc', label: 'An OIDC issuer', hint: 'sign in once per machine' },
@@ -100,11 +103,9 @@ async function authFor(io, provider) {
 
   if (kind === 'supabase') return { type: 'supabase' };
 
-  const issuer = await askUrl(io, 'Issuer URL', 'issuer');
+  const issuer = await askUrl(io, 'Issuer URL', 'issuer', 'The base URL of your provider, e.g. https://id.example.com');
 
-  note('The client id is whatever you registered this CLI as with that issuer.');
-
-  return keep({ type: 'oidc', issuer, clientId: await askRequired(io, 'Client id', 'A client id') });
+  return keep({ type: 'oidc', issuer, clientId: await askRequired(io, 'Client id', 'A client id', 'What you registered this CLI as with that issuer. There is no secret.') });
 }
 
 /**
@@ -134,6 +135,7 @@ export async function runWizard({ cwd, io = {} }) {
     ({ provider, options, auth } = picked);
     secrets = [];
   } else {
+    heading(dim('Where the encrypted files live'));
     provider = await pick(io, 'Where should encrypted secrets be stored?', PROVIDERS, { initial: 1 });
     console.log('');
     ({ options, secrets } = await optionsFor(io, provider));

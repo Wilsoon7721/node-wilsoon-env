@@ -1,5 +1,5 @@
-import { ConflictError, KIND_ENV, assertRef } from '../core/provider.js';
 import { PAYLOAD_HEADER_LEN } from '../core/crypto/header.js';
+import { assertRef, ConflictError, KIND_ENV } from '../core/provider.js';
 
 /**
  * Cloudflare Workers KV over the REST API.

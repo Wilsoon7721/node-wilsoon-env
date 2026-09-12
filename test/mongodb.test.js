@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConflictError } from '../core/provider.js';
-import { generateIdentity } from '../core/crypto/identity.js';
 import { seal } from '../core/crypto/envelope.js';
+import { generateIdentity } from '../core/crypto/identity.js';
+import { ConflictError } from '../core/provider.js';
 
 /*
   A stand-in for the driver, not a MongoDB.

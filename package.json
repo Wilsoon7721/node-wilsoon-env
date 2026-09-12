@@ -64,11 +64,12 @@
     }
   },
   "devDependencies": {
-    "@wilsoon/eslint-config": "^0.3.4",
+    "@wilsoon/eslint-config": "^0.4.2",
     "mongodb": "^7.6.0",
     "vitest": "^4.1.10"
   },
   "allowScripts": {
-    "@wilsoon/eslint-config@*": true
+    "@wilsoon/eslint-config@*": true,
+    "dprint@0.57.4": true
   }
 }

@@ -1,7 +1,7 @@
-import { createInterface } from 'node:readline/promises';
 import { clearScreenDown, cursorTo, emitKeypressEvents, moveCursor } from 'node:readline';
+import { createInterface } from 'node:readline/promises';
 
-import { S, bold, cyan, dim } from './format.js';
+import { bold, cyan, dim, S } from './format.js';
 
 const CTRL_C = String.fromCharCode(3);
 const BACKSPACE = String.fromCharCode(8);

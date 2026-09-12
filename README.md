@@ -178,7 +178,7 @@ alter table wilsoon_env enable row level security;
 
 `owner` records who last wrote a row, and is deliberately **outside the primary key**: the adapter addresses rows by `(project, kind, name)`, which is what lets a team share them. With row level security on and no policy yet, only a service key reaches the table — the next section removes that requirement.
 
-If the table lives outside `public`, set `"schema"` in options **and** add it under **Settings → API → Exposed schemas**. PostgREST serves one schema per request via `Accept-Profile`/`Content-Profile` and refuses any schema not on that list:
+If the table lives outside `public`, set `"schema"` in options **and** add it under **Settings → Data API → Exposed schemas**. PostgREST serves one schema per request via `Accept-Profile`/`Content-Profile` and refuses any schema not on that list:
 
 ```
 PGRST106  Only the following schemas are exposed: …

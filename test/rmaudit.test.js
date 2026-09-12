@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, rm as rmFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setup } from '../cli/commands/setup.js';
-import { push } from '../cli/commands/push.js';
 import { keys } from '../cli/commands/keys.js';
+import { push } from '../cli/commands/push.js';
 import { rm } from '../cli/commands/rm.js';
+import { setup } from '../cli/commands/setup.js';
 import { loadConfig } from '../core/config.js';
-import { create as createLocal } from '../providers/local.js';
 import { generateIdentity, sealIdentity } from '../core/crypto/identity.js';
+import { create as createLocal } from '../providers/local.js';
 
 const PASSPHRASE = 'a sufficiently long passphrase';
 

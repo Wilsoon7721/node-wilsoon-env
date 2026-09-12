@@ -1,5 +1,5 @@
-import { ConflictError, KIND_ENV, assertRef } from '../core/provider.js';
 import { PAYLOAD_HEADER_LEN } from '../core/crypto/header.js';
+import { assertRef, ConflictError, KIND_ENV } from '../core/provider.js';
 
 /**
  * MongoDB using its driver
@@ -91,7 +91,7 @@ export function create(options = {}, { dir } = {}) {
         return { version };
       }
 
-      if (BigInt(ifVersion) === 0n)
+      if (BigInt(ifVersion) === 0n) {
         try {
           await col.insertOne(document);
           return { version };
@@ -104,6 +104,7 @@ export function create(options = {}, { dir } = {}) {
 
           throw err;
         }
+      }
 
       const result = await col.updateOne({ ...filter, version: Number(ifVersion) }, { $set: document });
 

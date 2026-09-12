@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { constants } from 'node:os';
 
+import { open } from '../../core/crypto/envelope.js';
 import { parse } from '../../core/dotenv.js';
 import { openSession, unlockIdentity } from '../../core/session.js';
-import { open } from '../../core/crypto/envelope.js';
 import { cyan, dim, plural } from '../lib/format.js';
-import { command, note, warn } from '../lib/ui.js';
 import { password } from '../lib/prompt.js';
+import { command, note, warn } from '../lib/ui.js';
 
 const CMD_SPECIAL = /[\s"^&|<>()%!]/;
 
@@ -14,11 +14,11 @@ function quoteForCmd(arg) {
   if (!CMD_SPECIAL.test(arg)) return arg;
 
   return (
-    '"' +
-    String(arg)
-      .replace(/(\\*)"/g, '$1$1\\"')
-      .replace(/(\\*)$/, '$1$1') +
     '"'
+    + String(arg)
+      .replace(/(\\*)"/g, '$1$1\\"')
+      .replace(/(\\*)$/, '$1$1')
+    + '"'
   );
 }
 

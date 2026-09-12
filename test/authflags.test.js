@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { authFromFlags, normaliseIssuer, withIssuer } from '../cli/lib/authflags.js';
 import { parseArgs } from '../cli/lib/args.js';
+import { authFromFlags, normaliseIssuer, withIssuer } from '../cli/lib/authflags.js';
 
 const flagsOf = (line) => parseArgs(line.split(' ').filter(Boolean)).flags;
 

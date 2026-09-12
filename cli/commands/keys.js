@@ -1,11 +1,11 @@
 import { writeFile } from 'node:fs/promises';
 
-import { openSession } from '../../core/session.js';
 import { schemaRef } from '../../core/config.js';
-import { KIND_IDENTITY } from '../../core/provider.js';
-import { DEFAULT_KDF } from '../../core/crypto/kdf.js';
 import { unpackIdentityHeader } from '../../core/crypto/header.js';
 import { decodePublic, encodePrivate, encodePublic, generateIdentity, keyIdOf } from '../../core/crypto/identity.js';
+import { DEFAULT_KDF } from '../../core/crypto/kdf.js';
+import { KIND_IDENTITY } from '../../core/provider.js';
+import { openSession } from '../../core/session.js';
 import { bold, cyan, dim, green, plural, red, yellow } from '../lib/format.js';
 import { command, field, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
@@ -40,9 +40,8 @@ function list(session) {
 
   heading(`${plural(recipients.length, 'recipient')} for ${cyan(session.project)}`);
 
-  for (const r of recipients) {
+  for (const r of recipients)
     field(r.name ?? 'unnamed', `${dim(r.keyid ?? keyIdOf(decodePublic(r.pubkey)).toString('hex'))}  ${r.files?.length ? yellow(r.files.join(', ')) : dim('all files')}`, 14);
-  }
 
   console.log('');
   note(`Recipients live in your committed config, so granting access is a reviewable change.`);
@@ -71,9 +70,9 @@ async function add(session, args) {
 
   const files = args.flags.files
     ? String(args.flags.files)
-        .split(',')
-        .map((f) => f.trim())
-        .filter(Boolean)
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean)
     : undefined;
 
   const recipients = [...session.config.recipients, { name: name ?? 'unnamed', keyid, pubkey: encodePublic(publicRaw), ...(files ? { files } : {}) }];
@@ -99,9 +98,9 @@ async function issue(session, args) {
 
   const files = args.flags.files
     ? String(args.flags.files)
-        .split(',')
-        .map((f) => f.trim())
-        .filter(Boolean)
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean)
     : undefined;
 
   if (!files) {

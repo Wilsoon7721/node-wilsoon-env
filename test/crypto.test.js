@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
+import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_KDF, assertKdfParams, deriveKey } from '../core/crypto/kdf.js';
+import { open, seal } from '../core/crypto/envelope.js';
 import { IDENTITY_BLOB_LEN, PAYLOAD_HEADER_LEN, SLOT_LEN } from '../core/crypto/header.js';
 import { decodePublic, encodePublic, generateIdentity, keyIdOf, openIdentity, publicOf, sealIdentity } from '../core/crypto/identity.js';
-import { open, seal } from '../core/crypto/envelope.js';
+import { assertKdfParams, DEFAULT_KDF, deriveKey } from '../core/crypto/kdf.js';
 
 /*
   Argon2 at the real parameters is deliberately slow, and these tests exercise it
@@ -141,9 +141,8 @@ describe('envelope', () => {
 
     const blob = seal({ plaintext: ENV_FILE, recipients: team.map((m) => m.publicRaw), ...CONTEXT });
 
-    for (const member of team) {
+    for (const member of team)
       expect(open({ blob, privateRaw: member.privateRaw, project: CONTEXT.project, name: CONTEXT.name }).plaintext.toString()).toBe(ENV_FILE);
-    }
 
     expect(() => open({ blob, privateRaw: outsider.privateRaw, project: CONTEXT.project, name: CONTEXT.name })).toThrow(/no usable recipient slot/);
   });

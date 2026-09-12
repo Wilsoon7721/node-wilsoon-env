@@ -1,8 +1,8 @@
-import { openSession } from '../../core/session.js';
 import { KIND_ENV } from '../../core/provider.js';
+import { openSession } from '../../core/session.js';
 import { cyan, plural } from '../lib/format.js';
-import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 import { confirm } from '../lib/prompt.js';
+import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 /**
  * Delete a file from the store, the copy of the file on the machine is left alone

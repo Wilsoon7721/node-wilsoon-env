@@ -6,13 +6,12 @@ const enabled = process.env.NO_COLOR === undefined && process.env.TERM !== 'dumb
   well while its code page has nothing to draw a "✓" with, so the symbols need
   their own test: on Windows, assume a modern terminal only when one says so.
 */
-export const unicode =
-  process.platform !== 'win32' ||
-  Boolean(process.env.WT_SESSION) ||
-  Boolean(process.env.TERMINUS_SUBLIME) ||
-  process.env.ConEmuTask === '{cmd::Cmder}' ||
-  process.env.TERM_PROGRAM === 'vscode' ||
-  ['xterm-256color', 'xterm', 'alacritty', 'cygwin'].includes(process.env.TERM);
+export const unicode = process.platform !== 'win32'
+  || Boolean(process.env.WT_SESSION)
+  || Boolean(process.env.TERMINUS_SUBLIME)
+  || process.env.ConEmuTask === '{cmd::Cmder}'
+  || process.env.TERM_PROGRAM === 'vscode'
+  || ['xterm-256color', 'xterm', 'alacritty', 'cygwin'].includes(process.env.TERM);
 
 const wrap = (code) => (text) => (enabled ? `\x1b[${code}m${text}\x1b[0m` : String(text));
 

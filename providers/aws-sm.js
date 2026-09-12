@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import { ConflictError, KIND_ENV, assertRef } from '../core/provider.js';
 import { PAYLOAD_HEADER_LEN } from '../core/crypto/header.js';
+import { assertRef, ConflictError, KIND_ENV } from '../core/provider.js';
 import { resolveCredentials } from './lib/aws-credentials.js';
 import { sign } from './lib/sigv4.js';
 
