@@ -8,6 +8,7 @@ import { openSession, unlockIdentity } from '../../core/session.js';
 import { lastSeen, remember } from '../../core/state.js';
 import { cyan, dim, green, plural, red, yellow } from '../lib/format.js';
 import { confirm, password } from '../lib/prompt.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 async function localFile(dir, name) {
@@ -38,6 +39,7 @@ function describeChange(before, after) {
 
 export async function pull(args) {
   const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  await ensureSignedIn(session.config, args);
 
   const stored = (await session.provider.list(session.project)).filter((e) => e.kind === KIND_ENV && isSyncable(e.name, session.config));
 

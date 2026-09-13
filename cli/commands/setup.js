@@ -1,7 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { readCredential } from '../../auth/tokens.js';
 import { CONFIG_FILENAMES, findConfig, loadConfig, schemaRef } from '../../core/config.js';
 import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
@@ -10,9 +9,9 @@ import { authFromFlags, withIssuer } from '../lib/authflags.js';
 import { projectRef, runSql, supabaseDdl } from '../lib/ddl.js';
 import { cyan, dim, green, S } from '../lib/format.js';
 import { confirm, isInteractive, newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { listStores, readStore } from '../lib/stores.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
-import { signIn } from './login.js';
 import { offerToSave, runWizard } from './wizard.js';
 
 const GITIGNORE_ENTRIES = ['.env', '.env.*', '!.env.example', '!.env.*.example', '.wilsoon-store/'];
@@ -38,12 +37,6 @@ async function ensureGitignore(dir) {
   return missing;
 }
 
-/*
-  Every setting below can be typed on the command line, and none of it belongs in
-  --help. Gating them behind --unattended keeps the first thing a stranger reads
-  down to "setup will ask you", and makes a scripted run say out loud that it is
-  one - rather than being inferred from whether a terminal happened to be there.
-*/
 const UNATTENDED_ONLY = ['provider', 'path', 'bucket', 'endpoint', 'region', 'prefix', 'profile', 'url', 'anon-key', 'table', 'schema', 'account-id', 'namespace-id', 'db', 'collection', 'auth', 'issuer', 'client-id', 'scope'];
 
 function assertUnattended(flags) {
@@ -79,33 +72,6 @@ async function storeSettings(args, cwd, prior) {
   return { ...(await runWizard({ cwd })), asked: true };
 }
 
-/*
-  A store behind a login cannot be reached until this machine has signed in, and
-  the sign-in needs nothing from the config we are about to write. So offer it
-  here rather than failing with advice to run a command that would itself ask
-  for the config that does not exist yet.
-*/
-async function ensureSignedIn(auth, options, args) {
-  if (!auth || !isInteractive()) return;
-  if (await readCredential(auth.issuer)) return;
-
-  console.log('');
-  note(`This store works out who you are through ${cyan(auth.issuer)}, and this machine has not signed in yet.`);
-
-  if (!(await confirm('  Sign in now?'))) {
-    note(`Do it later with ${command(`login --issuer ${auth.issuer}`)}, then run setup again.`);
-    return;
-  }
-
-  await signIn(auth, args, { url: options.url, anonKey: options.anonKey });
-}
-
-/*
-  A missing table is the one failure with an exact remedy, so it gets one instead
-  of a shrug. Running it needs a personal access token, which is an account-wide
-  credential - so that path opens only if one is already in the environment, and
-  is never asked for.
-*/
 async function offerTheTable(providerName, options) {
   if (providerName !== 'supabase') return;
 
@@ -134,7 +100,7 @@ async function offerTheTable(providerName, options) {
 async function connect({ config, cwd, project, auth, options, args }) {
   const provider = await resolveProvider(config, cwd);
 
-  await ensureSignedIn(auth, options, args);
+  await ensureSignedIn(config, args);
 
   console.log('');
   await provider.list(project);

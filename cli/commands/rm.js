@@ -2,6 +2,7 @@ import { KIND_ENV } from '../../core/provider.js';
 import { openSession } from '../../core/session.js';
 import { cyan, plural } from '../lib/format.js';
 import { confirm } from '../lib/prompt.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 /**
@@ -9,6 +10,7 @@ import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
  */
 export async function rm(args) {
   const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  await ensureSignedIn(session.config, args);
 
   const names = args.positional;
 

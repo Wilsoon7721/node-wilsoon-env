@@ -7,6 +7,7 @@ import { KIND_IDENTITY } from '../../core/provider.js';
 import { openSession } from '../../core/session.js';
 import { cyan, dim } from '../lib/format.js';
 import { newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 
 /** Add your own key to a project someone else set up. */
@@ -30,6 +31,7 @@ export async function join(args) {
   }
 
   const session = await openSession({ cwd });
+  await ensureSignedIn(session.config, args);
 
   heading(`Joining ${cyan(config.project)}`);
   field('Provider', `${config.provider} ${dim(session.provider.describe?.() ?? '')}`);

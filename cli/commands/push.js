@@ -9,6 +9,7 @@ import { openSession, recipientKeys, recipientsFor } from '../../core/session.js
 import { remember } from '../../core/state.js';
 import { cyan, dim, plural, yellow } from '../lib/format.js';
 import { confirm } from '../lib/prompt.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 // Adding a recipient should inform user that it gives access to secrets, and the config only takes place on next push
@@ -37,6 +38,7 @@ async function confirmNewRecipients(session, recipients, files) {
 
 export async function push(args) {
   const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  await ensureSignedIn(session.config, args);
   const recipients = recipientKeys(session.config);
 
   const only = args.positional.length ? args.positional : null;

@@ -5,11 +5,13 @@ import { KIND_ENV, KIND_IDENTITY } from '../../core/provider.js';
 import { openSession } from '../../core/session.js';
 import { lastSeen } from '../../core/state.js';
 import { cyan, dim, green, plural, yellow } from '../lib/format.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, field, heading, note } from '../lib/ui.js';
 
 // Compares which files exist where, and at what version - does not decrypt anything
 export async function status(args = { flags: {} }) {
   const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  await ensureSignedIn(session.config, args);
 
   heading(`${cyan(session.project)}`);
   field('Config', path.relative(process.cwd(), session.file) || session.file);

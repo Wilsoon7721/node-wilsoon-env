@@ -6,6 +6,7 @@ import { parse } from '../../core/dotenv.js';
 import { openSession, unlockIdentity } from '../../core/session.js';
 import { cyan, dim, plural } from '../lib/format.js';
 import { password } from '../lib/prompt.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, note, warn } from '../lib/ui.js';
 
 const CMD_SPECIAL = /[\s"^&|<>()%!]/;
@@ -31,6 +32,7 @@ export async function run(args) {
   }
 
   const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  await ensureSignedIn(session.config, args);
   const names = String(args.flags.file ?? '.env')
     .split(',')
     .map((n) => n.trim())

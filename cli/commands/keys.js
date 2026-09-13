@@ -7,6 +7,7 @@ import { DEFAULT_KDF } from '../../core/crypto/kdf.js';
 import { KIND_IDENTITY } from '../../core/provider.js';
 import { openSession } from '../../core/session.js';
 import { bold, cyan, dim, green, plural, red, yellow } from '../lib/format.js';
+import { ensureSignedIn } from '../lib/signin.js';
 import { command, field, heading, note, ok, outcome, warn } from '../lib/ui.js';
 
 async function writeConfig(session, recipients) {
@@ -247,6 +248,7 @@ export async function keys(args) {
   const cwd = args.flags.cwd ?? process.cwd();
   const sub = args.positional[0] ?? 'list';
   const session = NEEDS_STORE.has(sub) ? await openSession({ cwd }) : await configOnly(cwd);
+  if (NEEDS_STORE.has(sub)) await ensureSignedIn(session.config, args);
 
   if (sub === 'list') return list(session);
   if (sub === 'add') return await add(session, args);
