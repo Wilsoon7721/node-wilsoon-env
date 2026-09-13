@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 
-import { schemaRef } from '../../core/config.js';
+import { loadConfig, schemaRef } from '../../core/config.js';
 import { unpackIdentityHeader } from '../../core/crypto/header.js';
 import { decodePublic, encodePrivate, encodePublic, generateIdentity, keyIdOf } from '../../core/crypto/identity.js';
 import { DEFAULT_KDF } from '../../core/crypto/kdf.js';
@@ -40,8 +40,7 @@ function list(session) {
 
   heading(`${plural(recipients.length, 'recipient')} for ${cyan(session.project)}`);
 
-  for (const r of recipients)
-    field(r.name ?? 'unnamed', `${dim(r.keyid ?? keyIdOf(decodePublic(r.pubkey)).toString('hex'))}  ${r.files?.length ? yellow(r.files.join(', ')) : dim('all files')}`, 14);
+  for (const r of recipients) field(r.name ?? 'unnamed', `${dim(r.keyid ?? keyIdOf(decodePublic(r.pubkey)).toString('hex'))}  ${r.files?.length ? yellow(r.files.join(', ')) : dim('all files')}`, 14);
 
   console.log('');
   note(`Recipients live in your committed config, so granting access is a reviewable change.`);
@@ -88,11 +87,19 @@ async function add(session, args) {
 }
 
 async function issue(session, args) {
-  const name = args.flags.name;
+  const mine = args.flags.me === true;
+  const name = args.flags.name ?? (mine ? 'me' : undefined);
 
   if (!name) {
     warn('Give the new key a name.');
     note(`${command('keys new --name ci --files .env.production')}`);
+    note(`Or ${command('keys new --me')} for a key of your own.`);
+    return 1;
+  }
+
+  if (session.config.recipients.some((r) => r.name === name)) {
+    warn(`This project already lists a recipient called ${cyan(name)}.`);
+    note(`Pick another with --name${mine ? `, or run ${command('pull')} if that key is already yours` : ''}.`);
     return 1;
   }
 
@@ -103,7 +110,9 @@ async function issue(session, args) {
       .filter(Boolean)
     : undefined;
 
-  if (!files) {
+  // A person is normally meant to read everything, so only nag about scope for
+  // the keys that exist to be narrow.
+  if (!files && !mine) {
     warn('This key will be able to open every file in the project.');
     note(`Scope it with --files, for example ${cyan('--files .env.production')}`);
     console.log('');
@@ -121,6 +130,20 @@ async function issue(session, args) {
   console.log('');
   note('This is shown once and is not saved anywhere. Copy it now.');
   console.log('');
+
+  if (mine) {
+    outcome({
+      ok: `Added ${green(name)} as a recipient. Your public key is ${dim(encodePublic(publicRaw))}`,
+      next: [
+        'You cannot read anything yet - what is already stored was sealed without you',
+        'Commit the config change: that diff is your request for access',
+        `Then someone who can already read it runs ${command('push')} to seal the files to you`,
+        'Keep the private key above as WILSOON_ENV_KEY - it lives nowhere else'
+      ]
+    });
+
+    return 0;
+  }
 
   outcome({
     ok: `Added ${green(name)} as a recipient${files ? ` for ${files.join(', ')}` : ''}`,
@@ -210,9 +233,20 @@ async function audit(session) {
   return weak ? 1 : 0;
 }
 
+async function configOnly(cwd) {
+  const loaded = await loadConfig(cwd);
+
+  if (!loaded) throw new Error('No wilsoon-env configuration found here or in any parent directory.\n\n  Run "npx @wilsoon/env setup" to create one, or move to a directory that has one.\n');
+
+  return { ...loaded, project: loaded.config.project };
+}
+
+const NEEDS_STORE = new Set(['audit', 'remove', 'rm']);
+
 export async function keys(args) {
-  const session = await openSession({ cwd: args.flags.cwd ?? process.cwd() });
+  const cwd = args.flags.cwd ?? process.cwd();
   const sub = args.positional[0] ?? 'list';
+  const session = NEEDS_STORE.has(sub) ? await openSession({ cwd }) : await configOnly(cwd);
 
   if (sub === 'list') return list(session);
   if (sub === 'add') return await add(session, args);

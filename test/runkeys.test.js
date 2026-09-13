@@ -193,3 +193,64 @@ describe('run', () => {
     expect(code).toBe(1);
   });
 });
+
+/*
+  A newcomer's public key is how they ask for access, so minting one must not
+  require the store credential they are asking to be given. Point the config at a
+  store that cannot answer and it still has to work.
+*/
+describe('keys new --me', () => {
+  const unreachable = async () => {
+    const file = path.join(dir, 'wilsoon-env.config.json');
+    const config = JSON.parse(await readFile(file, 'utf8'));
+
+    config.provider = 'supabase';
+    config.options = { url: 'http://127.0.0.1:1', anonKey: 'nope', table: 'blobs' };
+
+    await writeFile(file, JSON.stringify(config, null, 2));
+  };
+
+  const recipients = async () => JSON.parse(await readFile(path.join(dir, 'wilsoon-env.config.json'), 'utf8')).recipients;
+
+  it('adds a recipient without ever reaching the store', async () => {
+    await unreachable();
+
+    expect(await keys(args({ me: true, name: 'bob' }, ['new']))).toBe(0);
+    expect((await recipients()).map((r) => r.name)).toContain('bob');
+  });
+
+  it('prints the private half once, and says it is kept nowhere', async () => {
+    await unreachable();
+    await keys(args({ me: true, name: 'bob' }, ['new']));
+
+    expect(logs.join(' ')).toMatch(/wenvsk1[a-z2-7]+/);
+    expect(logs.join(' ')).toMatch(/shown once/);
+  });
+
+  it('defaults the name to me', async () => {
+    await unreachable();
+    await keys(args({ me: true }, ['new']));
+
+    expect((await recipients()).map((r) => r.name)).toContain('me');
+  });
+
+  it('refuses a name the project already lists', async () => {
+    await unreachable();
+
+    expect(await keys(args({ me: true, name: 'me' }, ['new']))).toBe(1);
+  });
+
+  it('does not nag about --files, since a person reads everything', async () => {
+    await unreachable();
+    await keys(args({ me: true, name: 'bob' }, ['new']));
+
+    expect(logs.join(' ')).not.toMatch(/Scope it with --files/);
+  });
+
+  // audit and remove genuinely need the store, so they must still say so.
+  it('leaves audit needing the store', async () => {
+    await unreachable();
+
+    await expect(keys(args({}, ['audit']))).rejects.toThrow();
+  });
+});
