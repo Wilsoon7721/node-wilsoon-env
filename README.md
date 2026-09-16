@@ -256,6 +256,36 @@ Its compare-and-swap is atomic too - `updateOne` with the expected version in th
 
 Verified against a real MongoDB Atlas cluster: full `setup`/`push`/`pull`, a stale write refused by the server, and a duplicate first write refused by the unique index. Blobs land as BSON `Binary`, and no plaintext reaches the database.
 
+### Your own endpoint
+
+When the store you want cannot trust your identity provider - Supabase only accepts a fixed list - put a small function in front of it. The function checks your sign-in itself, then does the storage with credentials that never leave the server. The `http` provider talks to any endpoint like that, and [`examples/supabase`](examples/supabase/functions/wilsoon-env) is a ready-made one for Supabase Edge Functions.
+
+1. Create the table (`setup` prints the SQL if it is missing) and copy `examples/supabase/functions/wilsoon-env` into your project's `supabase/functions/`.
+
+2. Tell it whom to trust:
+
+   ```bash
+   supabase secrets set \
+     WENV_ISSUER=https://id.example.com \
+     WENV_AUDIENCE=https://api.example.com \
+     WENV_ALLOWED_SUBJECTS=<your subject> \
+     WENV_SCHEMA=my_schema WENV_TABLE=blobs
+   ```
+
+   `WENV_AUDIENCE` is the `aud` of the access tokens your issuer gives the CLI. Set `WENV_CLIENT_ID` too if tokens should only be accepted when issued to that client. To find your subject, sign in with `npx @wilsoon/env login --issuer <url> --client-id <id>` and run `whoami` - or just try, since the endpoint tells anyone it refuses what their subject is.
+
+3. Deploy it with Supabase's own JWT check off, because it checks yours instead:
+
+   ```bash
+   supabase functions deploy wilsoon-env --no-verify-jwt
+   ```
+
+4. Point a project at it: run `setup`, choose **Your own endpoint**, and give it `https://<ref>.supabase.co/functions/v1/wilsoon-env` along with your issuer and client id.
+
+The service key is available inside the function and nowhere else, so no laptop or CI runner ever holds it. The function becomes your access control: it verifies the token's signature, issuer, audience and expiry against your issuer's published keys, refuses client-credential tokens, allows only the subjects you list, and reads each file's version from its sealed header rather than trusting the writer. It only ever sees ciphertext.
+
+Tokens are checked locally, so removing someone takes effect when their access token expires rather than the instant you disable them.
+
 ## Signing in
 
 Some stores can authenticate you against an OIDC issuer instead of a long-lived key. Only Supabase uses this today: it is the one provider whose store has a notion of _people_, because row level security evaluates `auth.uid()` per request. Everything else takes a machine credential and has nothing to sign in to.

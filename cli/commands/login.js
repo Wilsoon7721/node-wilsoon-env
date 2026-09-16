@@ -181,6 +181,8 @@ export async function whoami(args) {
 
   heading(`${cyan(auth.issuer)}`);
   field('Account', stored.email ?? stored.sub ?? dim('unknown'));
+  if (stored.sub) field('Subject', stored.sub);
+
   field('Token', usable ? green('valid') : yellow('expired'));
   field('Expires', stored.expiresAt ? new Date(stored.expiresAt).toLocaleString() : dim('not stated'));
 

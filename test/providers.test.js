@@ -273,5 +273,5 @@ describe('registration', () => {
     expect(typeof db.close).toBe('function');
   });
 
-  it('lists every provider when the name is unknown', async () => await expect(resolveProvider({ provider: 'nope', options: {} }, '.')).rejects.toThrow(/local, s3, supabase, kv, aws, mongodb/));
+  it('lists every provider when the name is unknown', async () => await expect(resolveProvider({ provider: 'nope', options: {} }, '.')).rejects.toThrow(/local, s3, supabase, kv, aws, http, mongodb/));
 });

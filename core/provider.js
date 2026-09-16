@@ -28,7 +28,8 @@ const BUILTIN = {
   s3: () => import('../providers/s3.js'),
   supabase: () => import('../providers/supabase.js'),
   kv: () => import('../providers/kv.js'),
-  aws: () => import('../providers/aws-sm.js')
+  aws: () => import('../providers/aws-sm.js'),
+  http: () => import('../providers/http.js')
 };
 
 const OPTIONAL = {

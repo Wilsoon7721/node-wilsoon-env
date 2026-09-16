@@ -64,7 +64,7 @@ const UNATTENDED_HELP = `
   ${dim('Nothing below is accepted without --unattended. Without it, setup asks.')}
 
   ${dim('Which store')}
-    --provider <name>        local, supabase, s3, kv, aws, mongodb
+    --provider <name>        local, supabase, s3, kv, aws, mongodb, http
 
   ${dim('local')}
     --path <dir>             Where the store lives            ${dim('[.wilsoon-store]')}
@@ -99,7 +99,11 @@ const UNATTENDED_HELP = `
     --collection <name>      ${dim('[blobs]')}
     ${dim('Credentials: MONGODB_URI')}
 
-  ${dim('Who the store thinks you are')} ${dim('(supabase only - nothing else has users)')}
+  ${dim('http - your own endpoint, e.g. examples/supabase')}
+    --url <url>              The endpoint
+    ${dim('Needs --auth oidc, --issuer and --client-id: the endpoint checks your sign-in')}
+
+  ${dim('Who the store thinks you are')} ${dim('(supabase and http - nothing else has users)')}
     --auth <oidc|supabase>
     --issuer <url>           For --auth oidc
     --client-id <id>         What you registered this CLI as. No secret

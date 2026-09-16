@@ -12,7 +12,8 @@ const PROVIDERS = [
   { value: 's3', label: 'S3-compatible', hint: 'AWS, Cloudflare R2, MinIO, Backblaze' },
   { value: 'kv', label: 'Cloudflare KV', hint: 'Eventual consistency: see README.md#providers' },
   { value: 'aws', label: 'AWS Secrets Manager', hint: 'what production already reads' },
-  { value: 'mongodb', label: 'MongoDB', hint: 'needs the mongodb driver installed' }
+  { value: 'mongodb', label: 'MongoDB', hint: 'needs the mongodb driver installed' },
+  { value: 'http', label: 'Your own endpoint', hint: 'a function that checks your sign-in' }
 ];
 
 const pick = (io, question, choices, opts = {}) => choose(question, choices, { ...opts, ...io });
@@ -79,10 +80,25 @@ async function optionsFor(io, provider) {
 
   if (provider === 'aws') return { options: keep({ region: await askFor(io, 'Region', 'us-east-1'), prefix: await askFor(io, 'Secret name prefix', 'wenv/') }), secrets: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'] };
 
+  if (provider === 'http') return { options: { url: await askUrl(io, 'Endpoint URL', 'endpoint URL', 'Where your function is served, e.g. https://<ref>.supabase.co/functions/v1/wilsoon-env') }, secrets: [] };
+
   return { options: keep({ db: await askFor(io, 'Database', 'wilsoon_env'), collection: await askFor(io, 'Collection', 'blobs') }), secrets: ['MONGODB_URI'] };
 }
 
+async function oidcAnswers(io) {
+  const issuer = await askUrl(io, 'Issuer URL', 'issuer', 'The base URL of your provider, e.g. https://id.example.com');
+
+  return keep({ type: 'oidc', issuer, clientId: await askRequired(io, 'Client id', 'A client id', 'What you registered this CLI as with that issuer. There is no secret.') });
+}
+
 async function authFor(io, provider) {
+  if (provider === 'http') {
+    heading(dim('How this machine proves it may fetch them'));
+    note('Your endpoint checks a sign-in from an OIDC issuer before it touches anything.');
+
+    return oidcAnswers(io);
+  }
+
   if (provider !== 'supabase') return null;
 
   heading(dim('How this machine proves it may fetch them'));
@@ -103,9 +119,7 @@ async function authFor(io, provider) {
 
   if (kind === 'supabase') return { type: 'supabase' };
 
-  const issuer = await askUrl(io, 'Issuer URL', 'issuer', 'The base URL of your provider, e.g. https://id.example.com');
-
-  return keep({ type: 'oidc', issuer, clientId: await askRequired(io, 'Client id', 'A client id', 'What you registered this CLI as with that issuer. There is no secret.') });
+  return oidcAnswers(io);
 }
 
 /**
