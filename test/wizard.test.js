@@ -183,3 +183,34 @@ describe('saved stores', () => {
     expect(JSON.parse(await readFile(storesPath(), 'utf8'))).toHaveProperty('x.provider', 'local');
   });
 });
+
+/*
+  Both of these used to trap people in the wizard. An empty answer asked again
+  forever, and Ctrl+C was caught by the URL retry loop, printed as though it were
+  a bad URL, and asked again too.
+*/
+describe('leaving the wizard', () => {
+  it('stops when a required answer is left empty', async () => {
+    const t = scripted(['2', '\n']);
+
+    await expect(runWizard({ cwd: home, io: t.io })).rejects.toMatchObject({ name: 'Cancelled', message: expect.stringMatching(/nothing was entered for Supabase project URL/) });
+  });
+
+  it('stops on Ctrl+C at a typed answer, rather than treating it as a bad URL', async () => {
+    const t = scripted(['2', '\x03']);
+
+    await expect(runWizard({ cwd: home, io: t.io })).rejects.toMatchObject({ name: 'Cancelled' });
+  });
+
+  it('stops on Ctrl+C at a menu', async () => {
+    const t = scripted(['\x03']);
+
+    await expect(runWizard({ cwd: home, io: t.io })).rejects.toMatchObject({ name: 'Cancelled' });
+  });
+
+  it('still asks again after a URL that is merely wrong', async () => {
+    const t = scripted(['2', 'not a url\n', 'https://xyz.supabase.co\n', 'k\n', '\n', '\n', '2', 'proj\n']);
+
+    await expect(runWizard({ cwd: home, io: t.io })).resolves.toMatchObject({ options: { url: 'https://xyz.supabase.co' } });
+  });
+});

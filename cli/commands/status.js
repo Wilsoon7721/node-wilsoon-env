@@ -1,8 +1,8 @@
 import path from 'node:path';
 
 import { discover, isSyncable } from '../../core/dotenv.js';
-import { KIND_ENV, KIND_IDENTITY } from '../../core/provider.js';
-import { openSession } from '../../core/session.js';
+import { KIND_ENV } from '../../core/provider.js';
+import { openSession, storedIdentity } from '../../core/session.js';
 import { lastSeen } from '../../core/state.js';
 import { cyan, dim, green, plural, yellow } from '../lib/format.js';
 import { ensureSignedIn } from '../lib/signin.js';
@@ -19,7 +19,9 @@ export async function status(args = { flags: {} }) {
   field('Recipients', session.config.recipients.map((r) => r.name ?? r.keyid ?? 'unnamed').join(', ') || dim('none'));
 
   const listed = await session.provider.list(session.project);
-  const hasIdentity = listed.some((e) => e.kind === KIND_IDENTITY);
+
+  let hasIdentity = false;
+  for (const r of session.config.recipients) if (!hasIdentity && (await storedIdentity(session, r.keyid))) hasIdentity = true;
 
   field('Identity', hasIdentity ? green('stored') : yellow('missing'));
 

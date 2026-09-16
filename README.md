@@ -109,16 +109,34 @@ Set `WILSOON_ENV_PASSPHRASE` and nothing has to be typed at all.
 | `pull [files...]`                    | Fetch, decrypt, and write - with a diff before overwriting                |
 | `status`                             | Compare local against stored. Never decrypts, never asks for a passphrase |
 | `run -- <cmd>`                       | Decrypt into a child process's environment, never onto disk               |
+| `export vercel\|wrangler`            | Send chosen keys to Vercel or Cloudflare Workers, as secrets only         |
 | `keys list\|add\|new\|audit\|remove` | Manage recipients                                                         |
 | `rm <files...>`                      | Delete a file from the store (local copies untouched)                     |
 | `login` / `whoami`                   | Sign in (Supabase Auth, or an OIDC issuer)                                |
 | `logout`                             | Forget cached keys and tokens on this machine                             |
 
-Useful flags: `--force` and `--yes` to skip confirmations, `--store <name>` to set up from a saved store, `--file a,b` to choose files for `run`, `--as <name>` to pick an identity, `--no-cache` to bypass the keychain, `--device` / `--browser` to pick a sign-in flow, `--cwd` to work outside the current directory. Everything that configures a store lives behind [`--unattended`](#scripting-it-instead).
+Useful flags: `--force` and `--yes` to skip confirmations, `--store <name>` to set up from a saved store, `--file a,b` to choose files for `run` and `export`, `--as <name>` to pick an identity, `--no-cache` to bypass the keychain, `--device` / `--browser` to pick a sign-in flow, `--cwd` to work outside the current directory. Everything that configures a store lives behind [`--unattended`](#scripting-it-instead).
+
+### Sending secrets to a platform
+
+```bash
+npx @wilsoon/env export vercel --env production
+npx @wilsoon/env export wrangler
+```
+
+`export` decrypts in memory, lists the key names - never the values - for you to tick, and hands the chosen values to the platform's own CLI over stdin. Nothing is written to disk, printed, or put on a command line.
+
+Everything goes in as a secret. On Vercel that is `vercel env add --sensitive --force`, one per key, replacing any variable with the same name; development is refused, because Vercel cannot make a development variable sensitive. On Cloudflare it is `wrangler secret bulk`, never a `vars` entry in `wrangler.jsonc`.
+
+- `--file .env.production` picks which stored file, `--keys A,B` skips the picker, and `--yes` sends everything when nobody is there to ask
+- `--env` is the Vercel environment (`production`, `preview`, or a custom one), or the Wrangler environment; `--branch` scopes a Vercel preview variable
+- Anything after `--` goes to the platform CLI: `export wrangler -- --name my-worker`
+
+The CLI has to be installed already - in the project or globally - and the directory linked (`vercel link`, or a `wrangler.jsonc`). Nothing is downloaded on the fly.
 
 ## Remembering your passphrase
 
-After the first successful unlock on a machine, the identity key is cached in the OS keychain, so day-to-day `pull` and `run` ask for nothing. The cache expires after 14 days, and `logout` clears it - which only forces a passphrase next time, it never makes anything unreadable.
+After the first successful unlock on a machine, your identity key is cached in the OS keychain, so day-to-day `pull` and `run` ask for nothing. You have one identity for every project, so unlocking it once unlocks all of them. The cache lasts 14 days by default: set `WILSOON_ENV_KEYCHAIN_DAYS` to a number of days, or to `never`. `logout` clears it - which only forces a passphrase next time, it never makes anything unreadable.
 
 | Platform | Backend                             | Status       |
 | -------- | ----------------------------------- | ------------ |
@@ -372,7 +390,7 @@ npx @wilsoon/env join --name bob    # generates his key, adds him to the config
 npx @wilsoon/env push               # re-seals, granting access
 ```
 
-`join` is the verb for "add me to this project". It generates an identity, stores it under its own key id, and appends Bob to `recipients` - leaving the provider, the options and everyone else's keys untouched. Alternatively Bob sends you his public key from `keys list` and you run `keys add --name bob --pubkey wenv1...` yourself.
+`join` is the verb for "add me to this project". If this machine already knows your identity it lists that key - no new key, nothing to type - and otherwise it creates one. Either way it appends you to `recipients`, leaving the provider, the options and everyone else's keys untouched, and if your key is already there it says so and changes nothing. Alternatively Bob sends you his public key from `keys list` and you run `keys add --name bob --pubkey wenv1...` yourself.
 
 Either way, **joining grants nothing**. Whatever is already stored was sealed before Bob existed, so he can't read it until someone who can runs `push`. The command says so rather than leaving him to discover it from a failed `pull`.
 
@@ -385,11 +403,13 @@ Adding a recipient to the config grants nothing on its own - the stored files we
 
 An attacker who fully compromises your bucket still cannot read future pushes, because becoming a recipient means getting a pull request merged.
 
-Each person's identity is stored under their own key id, so several people can share one store without overwriting each other. When a store holds more than one, pick yours with `--as`:
+Everyone has one identity for all their projects, stored once per store under its key id, so several people can share a store without overwriting each other. Each machine remembers whose identity it holds, so nobody needs a flag on their own machine - `--as` is only for a machine that knows none of the identities in a project:
 
 ```bash
 npx @wilsoon/env pull --as alice
 ```
+
+Key ids are the first 8 bytes of a hash, so two different keys sharing one is astronomically unlikely. In a namespace everyone writes to, `setup` and `join` check rather than assume, and refuse to overwrite a key that is not yours. If it ever happens, `--new-identity` gives that one project a key of its own.
 
 `keys audit` reports the Argon2 cost each stored identity was sealed at, which is the one part of a passphrase policy anybody else can verify. Passphrase strength itself is never recorded anywhere, by design, and cannot be checked.
 

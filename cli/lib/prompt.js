@@ -1,7 +1,7 @@
 import { clearScreenDown, cursorTo, emitKeypressEvents, moveCursor } from 'node:readline';
 import { createInterface } from 'node:readline/promises';
 
-import { bold, cyan, dim, S } from './format.js';
+import { bold, cyan, dim, green, S } from './format.js';
 
 const CTRL_C = String.fromCharCode(3);
 const BACKSPACE = String.fromCharCode(8);
@@ -9,6 +9,17 @@ const DELETE = String.fromCharCode(127);
 
 const HIDE_CURSOR = '\x1b[?25l';
 const SHOW_CURSOR = '\x1b[?25h';
+
+/** Someone chose to stop - Ctrl+C, Escape, or leaving a required answer empty. Not a failure. */
+export class Cancelled extends Error {
+  constructor(message = 'Cancelled.') {
+    super(message);
+    this.name = 'Cancelled';
+  }
+}
+
+// readline rejects a pending question with an AbortError on Ctrl+C
+const cancelledBy = (err) => (err?.name === 'AbortError' || err?.code === 'ABORT_ERR' ? new Cancelled() : err);
 
 export function isInteractive(input = process.stdin, output = process.stdout) {
   return Boolean(input.isTTY && output.isTTY) && process.env.CI !== 'true';
@@ -74,7 +85,7 @@ export function password(question) {
         if (ch === CTRL_C) {
           cleanup();
           process.stdout.write('\n');
-          return reject(new Error('Cancelled.'));
+          return reject(new Cancelled());
         }
 
         if (ch === DELETE || ch === BACKSPACE) {
@@ -125,6 +136,8 @@ export async function ask(question, { input = process.stdin, output = process.st
 
   try {
     return (await rl.question(question)).trim();
+  } catch (err) {
+    throw cancelledBy(err);
   } finally {
     rl.close();
   }
@@ -138,6 +151,8 @@ export async function confirm(question, { fallback = false, input = process.stdi
   try {
     const answer = (await rl.question(`${question} ${dim('[y/N]')} `)).trim().toLowerCase();
     return answer === 'y' || answer === 'yes';
+  } catch (err) {
+    throw cancelledBy(err);
   } finally {
     rl.close();
   }
@@ -213,7 +228,7 @@ export function choose(question, choices, { initial = 0, input = process.stdin, 
     };
 
     function onKeypress(str, key = {}) {
-      if ((key.ctrl && key.name === 'c') || key.name === 'escape') return settle(() => reject(new Error('Cancelled.')));
+      if ((key.ctrl && key.name === 'c') || key.name === 'escape') return settle(() => reject(new Cancelled()));
 
       if (key.name === 'up') {
         at = (at - 1 + choices.length) % choices.length;
@@ -234,6 +249,112 @@ export function choose(question, choices, { initial = 0, input = process.stdin, 
         render();
         return settle(() => resolve(valueOf(choices[at])));
       }
+    }
+
+    try {
+      guardTerminal(input, output);
+      emitKeypressEvents(input);
+
+      output.write(HIDE_CURSOR);
+      input.setRawMode(true);
+      input.resume();
+      input.setEncoding('utf8');
+      input.on('keypress', onKeypress);
+
+      render();
+    } catch (err) {
+      cleanup();
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Pick any number of a list. Arrow keys move, Space toggles, A toggles every one, Enter confirms.
+ * Long lists scroll inside the terminal instead of running off the top of it.
+ *
+ * @param {string} question
+ * @param {Array<string|{value: any, label: string, hint?: string, selected?: boolean}>} choices
+ * @returns {Promise<any[]>} the chosen values, in list order
+ */
+export function chooseMany(question, choices, { input = process.stdin, output = process.stdout } = {}) {
+  requireInteractive('Choosing options', input, output);
+
+  if (!Array.isArray(choices) || choices.length === 0) throw new Error('chooseMany() needs at least one choice.');
+
+  const picked = choices.map((choice) => (typeof choice === 'string' ? true : choice.selected !== false));
+  const labels = Math.max(...choices.map((choice) => labelOf(choice).length));
+
+  let at = 0;
+  let top = 0;
+  let drawn = 0;
+
+  return new Promise((resolve, reject) => {
+    const render = () => {
+      if (drawn) {
+        cursorTo(output, 0);
+        moveCursor(output, 0, -drawn);
+        clearScreenDown(output);
+      }
+
+      const room = Math.max(3, (output.rows ?? 24) - 7);
+      if (at < top) top = at;
+      if (at >= top + room) top = at - room + 1;
+
+      const count = picked.filter(Boolean).length;
+      const lines = [`  ${bold(question)}`, `  ${dim(`${count} of ${choices.length} selected - space toggles, a toggles all, enter confirms`)}`, ''];
+
+      if (top > 0) lines.push(`    ${dim(`${S.arrow} ${top} more above`)}`);
+
+      for (let i = top; i < Math.min(choices.length, top + room); i++) {
+        const hint = hintOf(choices[i]);
+        const box = picked[i] ? green('[x]') : dim('[ ]');
+        const label = hint ? labelOf(choices[i]).padEnd(labels) : labelOf(choices[i]);
+        const tail = hint ? `  ${dim(hint)}` : '';
+
+        lines.push(i === at ? `  ${cyan(S.pointer)} ${box} ${cyan(label)}${tail}` : `    ${box} ${label}${tail}`);
+      }
+
+      const below = choices.length - (top + room);
+      if (below > 0) lines.push(`    ${dim(`${S.arrow} ${below} more below`)}`);
+
+      lines.push('');
+      output.write(lines.join('\n') + '\n');
+      drawn = lines.length;
+    };
+
+    const cleanup = () => {
+      input.removeListener('keypress', onKeypress);
+
+      try {
+        if (input.isTTY) input.setRawMode(false);
+      } catch {}
+
+      try {
+        input.pause();
+      } catch {}
+
+      try {
+        output.write(SHOW_CURSOR);
+      } catch {}
+    };
+
+    const settle = (act) => {
+      cleanup();
+      act();
+    };
+
+    function onKeypress(str, key = {}) {
+      if ((key.ctrl && key.name === 'c') || key.name === 'escape') return settle(() => reject(new Cancelled()));
+
+      if (key.name === 'up') at = (at - 1 + choices.length) % choices.length;
+      else if (key.name === 'down') at = (at + 1) % choices.length;
+      else if (key.name === 'space') picked[at] = !picked[at];
+      else if (str === 'a' || str === 'A') picked.fill(!picked.every(Boolean));
+      else if (key.name === 'return' || key.name === 'enter') return settle(() => resolve(choices.filter((_, i) => picked[i]).map(valueOf)));
+      else return;
+
+      render();
     }
 
     try {

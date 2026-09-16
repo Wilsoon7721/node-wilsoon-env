@@ -1,6 +1,5 @@
 import { clearCredential } from '../../auth/tokens.js';
-import { accountFor, describe as describeKeychain, forget } from '../../core/keychain.js';
-import { KIND_IDENTITY } from '../../core/provider.js';
+import { accountFor, describe as describeKeychain, forget, identityAccount } from '../../core/keychain.js';
 import { openSession } from '../../core/session.js';
 import { cyan, plural } from '../lib/format.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
@@ -21,9 +20,8 @@ export async function logout(args) {
     return 0;
   }
 
-  const stored = (await session.provider.list(session.project)).filter((e) => e.kind === KIND_IDENTITY);
-
-  const wanted = args.flags.as ? stored.filter((e) => e.name === session.config.recipients.find((r) => r.name === args.flags.as || r.keyid === args.flags.as)?.keyid) : stored;
+  const { recipients } = session.config;
+  const wanted = args.flags.as ? recipients.filter((r) => r.name === args.flags.as || r.keyid === args.flags.as) : recipients;
 
   if (!wanted.length) {
     warn(args.flags.as ? `No identity called ${cyan(args.flags.as)} in this project.` : 'No identities to forget.');
@@ -34,10 +32,14 @@ export async function logout(args) {
 
   let cleared = 0;
 
-  for (const entry of wanted) {
-    const who = session.config.recipients.find((r) => r.keyid === entry.name)?.name ?? entry.name;
+  for (const r of wanted) {
+    const who = r.name ?? r.keyid;
 
-    if (await forget(accountFor(session.project, entry.name))) {
+    // An identity is cached once for every project it belongs to, and older versions cached it per project
+    const shared = await forget(identityAccount(r.keyid));
+    const legacy = await forget(accountFor(session.project, r.keyid));
+
+    if (shared || legacy) {
       ok(who);
       cleared++;
     } else
@@ -46,7 +48,10 @@ export async function logout(args) {
 
   outcome({
     ok: cleared ? `${plural(cleared, 'key')} forgotten` : 'Nothing was cached on this machine',
-    next: [signedOut ? `Also signed out of ${auth.issuer}` : 'No identity provider token was stored', `Your secrets are untouched - the next ${command('pull')} will ask for your passphrase again`]
+    next: [
+      signedOut ? `Also signed out of ${auth.issuer}` : 'No identity provider token was stored',
+      `Your secrets are untouched - the next ${command('pull')} will ask for your passphrase again${cleared ? ', in every project that key belongs to' : ''}`
+    ]
   });
 
   return 0;

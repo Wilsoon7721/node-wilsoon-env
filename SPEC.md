@@ -39,13 +39,21 @@ primary key; in Mongo it is a compound index. The provider decides, not the form
 
 | kind       | name              | contents                        |
 | ---------- | ----------------- | ------------------------------- |
-| `identity` | `<keyid hex>`     | identity blob (§4), one per key |
+| `identity` | `<keyid hex>`     | identity blob (§4), one per person |
 | `env`      | `.env.production` | payload blob (§5), one per file |
 
-Identity objects are named by the key id (§5) of the key they hold, so two people
-sharing one store cannot overwrite each other. A blob still named `default`, from
-before that rule, keeps opening: readers list what the store reports rather than
-expecting a particular name.
+An identity belongs to a person, not a project, so it is filed once per store under
+the reserved owner `~identities` and named by its key id (§5). Every project that
+person joins lists the same public key, and unlocking it once on a machine unlocks
+all of them.
+
+Key ids are 8 bytes, so in a namespace every person writes to, a writer never
+assumes a blob under its key id is its own: if the bytes differ it unlocks both,
+and refuses to overwrite a key whose public half is not its own.
+
+Identities written before this rule sit beside a project's files under that
+project's owner, and keep opening: readers look under `~identities` first and fall
+back to the project.
 
 Filenames are stored **verbatim**. `.env.production` and `.env.prod` are different
 objects. No normalisation into canonical environment names — that mapping is lossy

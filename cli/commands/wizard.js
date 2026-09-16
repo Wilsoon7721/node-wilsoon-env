@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { normaliseIssuer } from '../lib/authflags.js';
 import { cyan, dim } from '../lib/format.js';
-import { ask, choose, confirm } from '../lib/prompt.js';
+import { ask, Cancelled, choose, confirm } from '../lib/prompt.js';
 import { listStores, saveStore } from '../lib/stores.js';
 import { heading, note, warn } from '../lib/ui.js';
 
@@ -30,18 +30,19 @@ async function askUrl(io, question, what, hint = '') {
     try {
       return normaliseIssuer(await askRequired(io, question, what, hint), what);
     } catch (err) {
+      // Only a bad URL is worth asking again for. Stopping has to stop.
+      if (err instanceof Cancelled) throw err;
+
       note(err.message.split('\n')[0]);
     }
   }
 }
 
 async function askRequired(io, question, what, hint = '') {
-  for (;;) {
-    const answer = await askFor(io, question, '', hint);
-    if (answer) return answer;
+  const answer = await askFor(io, question, '', hint);
+  if (!answer) throw new Cancelled(`Setup stopped: nothing was entered for ${question}. Nothing was written.`);
 
-    note(`${what} is needed to reach the store.`);
-  }
+  return answer;
 }
 
 const keep = (options) => Object.fromEntries(Object.entries(options).filter(([, v]) => v !== '' && v !== undefined && v !== null));

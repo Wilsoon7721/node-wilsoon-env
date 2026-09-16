@@ -2,11 +2,10 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { loadConfig, schemaRef } from '../../core/config.js';
-import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
-import { KIND_IDENTITY } from '../../core/provider.js';
+import { IdentityClash, readPersonal } from '../../core/personal.js';
 import { openSession } from '../../core/session.js';
 import { cyan, dim } from '../lib/format.js';
-import { newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { identityFor } from '../lib/identity.js';
 import { ensureSignedIn } from '../lib/signin.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
 
@@ -23,10 +22,30 @@ export async function join(args) {
 
   const { config } = loaded;
   const me = args.flags.name ?? 'me';
+  const fresh = Boolean(args.flags['new-identity']);
+  const personal = fresh ? null : await readPersonal();
+
+  const sameId = personal && config.recipients.find((r) => r.keyid === personal.keyid);
+
+  if (sameId && sameId.pubkey === personal.pubkey) {
+    outcome({
+      ok: `You are already a recipient of ${config.project}, as ${cyan(sameId.name ?? sameId.keyid)}`,
+      next: [`Run ${command('pull')} once someone with access has pushed`, `If that recipient is somebody else holding an identical key, join with ${command('join --new-identity')}`]
+    });
+
+    return 0;
+  }
+
+  if (sameId) {
+    warn(`${config.project} already lists a different key under your key id (${personal.keyid}).`);
+    note('Two different keys sharing an id is vanishingly rare, but they cannot both be recipients.');
+    note(`Join with a key for this project alone: ${command('join --new-identity')}`);
+    return 1;
+  }
 
   if (config.recipients.some((r) => r.name === me)) {
     warn(`This project already lists a recipient called ${cyan(me)}.`);
-    note(`Pick a different name with --name, or run ${command('setup --force')} to replace that identity.`);
+    note(`Pick a different name with --name, or run ${command('setup --force')} if that recipient is you.`);
     return 1;
   }
 
@@ -39,17 +58,27 @@ export async function join(args) {
   field('Existing', config.recipients.map((r) => r.name ?? r.keyid).join(', ') || dim('nobody'));
   console.log('');
 
-  note('Your passphrase protects your own identity key. It is never sent anywhere,');
-  note('and nobody else in this project can recover it for you.');
-  console.log('');
+  let identity;
 
-  const passphrase = process.env.WILSOON_ENV_PASSPHRASE ?? (requireInteractive('Joining a project'), await newPassphrase());
+  try {
+    identity = await identityFor(session.provider, { fresh, purpose: 'Joining a project' });
+  } catch (err) {
+    if (!(err instanceof IdentityClash)) throw err;
 
-  const { publicRaw, privateRaw } = generateIdentity();
-  const pubkey = encodePublic(publicRaw);
-  const keyid = keyIdOf(publicRaw).toString('hex');
+    warn(err.message);
+    note('Two different keys sharing an id is vanishingly rare, but this store cannot hold yours under that name.');
+    note(`Join with a key for this project alone: ${command('join --new-identity')}`);
+    return 1;
+  }
 
-  await session.provider.put({ project: config.project, kind: KIND_IDENTITY, name: keyid }, await sealIdentity(privateRaw, passphrase));
+  const { keyid, pubkey } = identity;
+
+  const files = args.flags.files
+    ? String(args.flags.files)
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean)
+    : undefined;
 
   const out = {
     $schema: await schemaRef(loaded.dir),
@@ -60,22 +89,7 @@ export async function join(args) {
     ...(config.kdf ? { kdf: config.kdf } : {}),
     include: config.include,
     exclude: config.exclude,
-    recipients: [
-      ...config.recipients,
-      {
-        name: me,
-        keyid,
-        pubkey,
-        ...(args.flags.files
-          ? {
-            files: String(args.flags.files)
-              .split(',')
-              .map((f) => f.trim())
-              .filter(Boolean)
-          }
-          : {})
-      }
-    ]
+    recipients: [...config.recipients, { name: me, keyid, pubkey, ...(files ? { files } : {}) }]
   };
 
   if (loaded.source === 'package.json') {
@@ -94,7 +108,7 @@ export async function join(args) {
     next: [
       'You cannot read anything yet - what is already stored was secured without you',
       `Commit ${path.basename(loaded.file)}, then ask someone with access to pull and run ${command('push')}`,
-      `After that, ${command('pull --as ' + me)} will work on this machine`
+      `After that, ${command('pull')} will work on this machine`
     ]
   });
 

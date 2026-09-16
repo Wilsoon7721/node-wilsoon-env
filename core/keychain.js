@@ -151,6 +151,22 @@ export function describe() {
 
 export const accountFor = (project, keyid) => `${project}:${keyid}`;
 
+export const identityAccount = (keyid) => `identity:${keyid}`;
+
+// How long an unlocked key stays cached.
+// WILSOON_ENV_KEYCHAIN_DAYS takes a number of days or "never"
+export function keychainDays() {
+  const raw = String(process.env.WILSOON_ENV_KEYCHAIN_DAYS ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (!raw) return DEFAULT_TTL_DAYS;
+  if (raw === 'never') return Infinity;
+
+  const days = Number(raw);
+  return Number.isFinite(days) && days > 0 ? days : DEFAULT_TTL_DAYS;
+}
+
 /**
  * @returns {Promise<Buffer|null>} the cached key, or null for any reason at all
  */
@@ -182,7 +198,7 @@ export async function recall(account) {
 }
 
 /** @returns {Promise<boolean>} whether it was actually cached. Never throws. */
-export async function remember(account, privateRaw, { days = DEFAULT_TTL_DAYS } = {}) {
+export async function remember(account, privateRaw, { days = keychainDays() } = {}) {
   const store = backend();
   if (!store) return false;
 

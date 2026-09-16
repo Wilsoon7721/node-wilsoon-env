@@ -8,6 +8,8 @@ import { pull } from '../cli/commands/pull.js';
 import { push } from '../cli/commands/push.js';
 import { setup } from '../cli/commands/setup.js';
 import { loadConfig } from '../core/config.js';
+import { encodePublic, generateIdentity } from '../core/crypto/identity.js';
+import { IDENTITY_PROJECT, readPersonal } from '../core/personal.js';
 import { create as createLocal } from '../providers/local.js';
 
 const ALICE = 'alice passphrase, long enough';
@@ -15,12 +17,21 @@ const BOB = 'bob passphrase, also long enough';
 
 let dir;
 let logs;
+let homes;
 
 const args = (flags = {}, positional = []) => ({ flags: { cwd: dir, ...flags }, positional, rest: [] });
-const identities = async () => (await createLocal({}, { dir }).list('demo')).filter((e) => e.kind === 'identity');
+const identities = async () => (await createLocal({}, { dir }).list(IDENTITY_PROJECT)).filter((e) => e.kind === 'identity');
+
+// A separate home is a separate machine, which is what a separate person is.
+async function as(person, passphrase) {
+  homes[person] ??= await mkdtemp(path.join(tmpdir(), `wenv-${person}-`));
+  process.env.WILSOON_ENV_CREDENTIALS_DIR = homes[person];
+  process.env.WILSOON_ENV_PASSPHRASE = passphrase;
+}
 
 beforeEach(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'wenv-join-'));
+  homes = {};
   process.env.WILSOON_ENV_STATE_DIR = dir;
 
   logs = [];
@@ -29,7 +40,7 @@ beforeEach(async () => {
 
   await writeFile(path.join(dir, '.env'), 'A=1\n');
 
-  process.env.WILSOON_ENV_PASSPHRASE = ALICE;
+  await as('alice', ALICE);
   await setup(args({ project: 'demo', name: 'alice' }));
   await push(args({ yes: true }));
 });
@@ -39,10 +50,11 @@ afterEach(async () => {
   delete process.env.WILSOON_ENV_PASSPHRASE;
   delete process.env.WILSOON_ENV_STATE_DIR;
   await rm(dir, { recursive: true, force: true });
+  for (const home of Object.values(homes)) await rm(home, { recursive: true, force: true });
 });
 
 async function bobJoins(flags = {}) {
-  process.env.WILSOON_ENV_PASSPHRASE = BOB;
+  await as('bob', BOB);
   return await join(args({ name: 'bob', ...flags }));
 }
 
@@ -88,22 +100,22 @@ describe('join', () => {
     await rm(path.join(dir, '.env'));
 
     // Sealed before bob existed, so there is no slot for him.
-    process.env.WILSOON_ENV_PASSPHRASE = BOB;
-    await expect(pull(args({ force: true, as: 'bob' }))).rejects.toThrow(/no usable recipient slot/);
+    await as('bob', BOB);
+    await expect(pull(args({ force: true }))).rejects.toThrow(/no usable recipient slot/);
 
     // Alice pushes, which re-seals to both.
-    process.env.WILSOON_ENV_PASSPHRASE = ALICE;
-    await pull(args({ force: true, as: 'alice' }));
+    await as('alice', ALICE);
+    await pull(args({ force: true }));
     await push(args({ yes: true }));
     await rm(path.join(dir, '.env'));
 
-    process.env.WILSOON_ENV_PASSPHRASE = BOB;
-    expect(await pull(args({ force: true, as: 'bob' }))).toBe(0);
+    await as('bob', BOB);
+    expect(await pull(args({ force: true }))).toBe(0);
     expect(await readFile(path.join(dir, '.env'), 'utf8')).toBe('A=1\n');
   });
 
   it('refuses a name already taken, and points at the alternatives', async () => {
-    process.env.WILSOON_ENV_PASSPHRASE = BOB;
+    await as('bob', BOB);
 
     expect(await join(args({ name: 'alice' }))).toBe(1);
     expect(logs.join('\n')).toMatch(/already lists a recipient called/);
@@ -133,7 +145,7 @@ describe('join', () => {
       const { config } = await loadConfig(dir);
       await writeFile(path.join(nested, 'package.json'), JSON.stringify({ name: 'x', 'wilsoon-env': { ...config, options: { path: path.join(dir, '.wilsoon-store') } } }));
 
-      process.env.WILSOON_ENV_PASSPHRASE = BOB;
+      await as('bob', BOB);
       logs = [];
 
       expect(await join({ flags: { cwd: nested, name: 'bob' }, positional: [], rest: [] })).toBe(1);
@@ -142,5 +154,35 @@ describe('join', () => {
     } finally {
       await rm(nested, { recursive: true, force: true });
     }
+  });
+});
+
+describe('join, when identities meet', () => {
+  it('says you are already here when this identity is a recipient, and changes nothing', async () => {
+    const before = await readFile((await loadConfig(dir)).file, 'utf8');
+
+    expect(await join(args({ name: 'alice-again' }))).toBe(0);
+    expect(logs.join('\n')).toMatch(/already a recipient of demo, as alice/);
+    expect(await readFile((await loadConfig(dir)).file, 'utf8')).toBe(before);
+  });
+
+  it('names the way out in case that recipient is somebody else with an identical key', async () => {
+    await join(args({ name: 'alice-again' }));
+    expect(logs.join('\n')).toMatch(/join --new-identity/);
+  });
+
+  // Same key id, different public key: two keys whose ids collide. They cannot both be recipients.
+  it('refuses a different key under your key id, and offers a fresh identity', async () => {
+    const { keyid } = await readPersonal();
+    const loaded = await loadConfig(dir);
+    const impostor = { name: 'someone', keyid, pubkey: encodePublic(generateIdentity().publicRaw) };
+    await writeFile(loaded.file, JSON.stringify({ ...loaded.config, recipients: [impostor] }, null, 2));
+
+    expect(await join(args({ name: 'alice' }))).toBe(1);
+    expect(logs.join('\n')).toMatch(/different key under your key id/);
+    expect(logs.join('\n')).toMatch(/--new-identity/);
+
+    expect(await join(args({ name: 'alice', 'new-identity': true }))).toBe(0);
+    expect((await loadConfig(dir)).config.recipients.map((r) => r.name)).toEqual(['someone', 'alice']);
   });
 });

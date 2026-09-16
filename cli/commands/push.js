@@ -4,13 +4,15 @@ import path from 'node:path';
 import { recipientsOf, seal } from '../../core/crypto/envelope.js';
 import { keyIdOf } from '../../core/crypto/identity.js';
 import { discover } from '../../core/dotenv.js';
+import { readPersonal } from '../../core/personal.js';
 import { ConflictError, WEAK_CAS_WARNING } from '../../core/provider.js';
 import { openSession, recipientKeys, recipientsFor } from '../../core/session.js';
 import { remember } from '../../core/state.js';
 import { cyan, dim, plural, yellow } from '../lib/format.js';
-import { confirm } from '../lib/prompt.js';
+import { confirm, isInteractive } from '../lib/prompt.js';
 import { ensureSignedIn } from '../lib/signin.js';
 import { command, heading, note, ok, outcome, warn } from '../lib/ui.js';
+import { verifyRoundTrip } from '../lib/verify.js';
 
 // Adding a recipient should inform user that it gives access to secrets, and the config only takes place on next push
 async function confirmNewRecipients(session, recipients, files) {
@@ -62,6 +64,7 @@ export async function push(args) {
 
   let pushed = 0;
   let skipped = 0;
+  const created = [];
 
   for (const name of files) {
     const plaintext = await readFile(path.join(session.dir, name));
@@ -90,6 +93,7 @@ export async function push(args) {
     }
 
     await remember(session.project, name, version);
+    if (!current) created.push(name);
 
     ok(`${name} ${dim(`v${version}`)}${forFile.length < recipients.length ? dim(` (${forFile.length}/${recipients.length} recipients)`) : ''}`);
     pushed++;
@@ -99,6 +103,22 @@ export async function push(args) {
     ok: `${plural(pushed, 'file')} pushed${skipped ? `, ${skipped} skipped` : ''}`,
     next: [`Encrypted for ${plural(recipients.length, 'recipient')}`, skipped ? `Run ${command('pull')} to resolve the conflicts, then push again` : `Run ${command('pull')} on another machine to fetch them`]
   });
+
+  /*
+    A project's first push is the moment worth proving the round trip: offer to
+    pull straight back and compare, while the person who set it up is still here.
+    Only when this machine's own identity is a recipient - otherwise there is
+    nobody here who could decrypt it.
+  */
+  if (!skipped && created.length && created.length === pushed && isInteractive() && !args.flags.yes) {
+    const personal = await readPersonal();
+
+    if (personal && session.config.recipients.some((r) => r.keyid === personal.keyid)) {
+      if ((await confirm('  Pull it straight back to check the round trip?')) && !(await verifyRoundTrip(session, created, args))) return 1;
+
+      console.log('');
+    }
+  }
 
   return skipped ? 1 : 0;
 }

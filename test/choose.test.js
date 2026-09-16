@@ -1,6 +1,6 @@
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { choose } from '../cli/lib/prompt.js';
+import { choose, chooseMany } from '../cli/lib/prompt.js';
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -211,5 +211,77 @@ describe('choose without a terminal', () => {
   it('refuses an empty list rather than rendering nothing', () => {
     interactive();
     expect(() => choose('Pick one', [], fakeTerminal())).toThrow(/at least one choice/);
+  });
+});
+
+describe('chooseMany', () => {
+  const strip = (text) => text.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '');
+
+  it('starts with everything ticked unless told otherwise', async () => {
+    interactive();
+    const t = fakeTerminal();
+    const picked = chooseMany('Send which?', ['A', { value: 'B', label: 'B', selected: false }, 'C'], t);
+
+    await tick();
+    t.input.write('\r');
+
+    await expect(picked).resolves.toEqual(['A', 'C']);
+  });
+
+  it('toggles the highlighted one with space', async () => {
+    interactive();
+    const t = fakeTerminal();
+    const picked = chooseMany('Send which?', ['A', 'B', 'C'], t);
+
+    await tick();
+    t.input.write('\x1b[B');
+    await tick();
+    t.input.write(' ');
+    await tick();
+    t.input.write('\r');
+
+    await expect(picked).resolves.toEqual(['A', 'C']);
+  });
+
+  it('toggles every one with a, and back', async () => {
+    interactive();
+    const t = fakeTerminal();
+    const picked = chooseMany('Send which?', ['A', 'B'], t);
+
+    await tick();
+    t.input.write('a');
+    await tick();
+    expect(strip(t.rendered())).toMatch(/0 of 2 selected/);
+
+    t.input.write('a');
+    await tick();
+    t.input.write('\r');
+
+    await expect(picked).resolves.toEqual(['A', 'B']);
+  });
+
+  it('scrolls a list taller than the terminal', async () => {
+    interactive();
+    const t = fakeTerminal();
+    t.output.rows = 10;
+    const picked = chooseMany('Send which?', Array.from({ length: 30 }, (_, i) => `K${i}`), t);
+
+    await tick();
+    expect(strip(t.rendered())).toMatch(/27 more below/);
+
+    t.input.write('\r');
+    await picked;
+  });
+
+  it('cancels on ctrl-c and gives the terminal back', async () => {
+    interactive();
+    const t = fakeTerminal();
+    const picked = chooseMany('Send which?', ['A'], t);
+
+    await tick();
+    t.input.write('\x03');
+
+    await expect(picked).rejects.toThrow(/Cancelled/);
+    expect(t.rawCalls).toEqual([true, false]);
   });
 });

@@ -2,13 +2,14 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { CONFIG_FILENAMES, findConfig, loadConfig, schemaRef } from '../../core/config.js';
-import { encodePublic, generateIdentity, keyIdOf, sealIdentity } from '../../core/crypto/identity.js';
 import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../../core/dotenv.js';
-import { KIND_IDENTITY, resolveProvider } from '../../core/provider.js';
+import { IdentityClash } from '../../core/personal.js';
+import { resolveProvider } from '../../core/provider.js';
 import { authFromFlags, withIssuer } from '../lib/authflags.js';
 import { projectRef, runSql, supabaseDdl } from '../lib/ddl.js';
 import { cyan, dim, green, S } from '../lib/format.js';
-import { confirm, isInteractive, newPassphrase, requireInteractive } from '../lib/prompt.js';
+import { identityFor } from '../lib/identity.js';
+import { confirm, isInteractive } from '../lib/prompt.js';
 import { ensureSignedIn } from '../lib/signin.js';
 import { listStores, readStore } from '../lib/stores.js';
 import { command, field, heading, note, outcome, warn } from '../lib/ui.js';
@@ -189,37 +190,24 @@ export async function setup(args) {
   if (wizard && !wizard.saved) await offerToSave({ provider: providerName, options, auth });
 
   const me = args.flags.name ?? 'me';
-  const previous = prior?.recipients?.find((r) => r.name === me);
-  const storedIdentity = previous?.keyid ? await provider.get({ project, kind: KIND_IDENTITY, name: previous.keyid }).catch(() => null) : null;
 
-  if (storedIdentity && !args.flags.yes) {
-    console.log('');
-    warn(`An identity key is already stored for ${cyan(me)} in ${cyan(project)}.`);
-    note('Replacing it makes everything already sealed to that key unreadable by you,');
-    note('until someone who can still read it pushes again.');
-    console.log('');
+  let identity;
 
-    if (!(await confirm('  Replace it?'))) {
-      note('Nothing was changed.');
-      return 1;
-    }
+  try {
+    identity = await identityFor(provider, { fresh: Boolean(args.flags['new-identity']), purpose: 'Setting up a project' });
+  } catch (err) {
+    if (!(err instanceof IdentityClash)) throw err;
+
+    console.log('');
+    warn(err.message);
+    note('Two different keys sharing an id is vanishingly rare, but this store cannot hold yours under that name.');
+    note(`Use a key for this project alone: ${command('setup --force --new-identity')}`);
+    return 1;
   }
 
-  note('Your passphrase protects the identity key that unlocks every secret in');
-  note('this project. It is never sent anywhere, and it cannot be recovered.');
-  console.log('');
-
-  const passphrase = process.env.WILSOON_ENV_PASSPHRASE ?? (requireInteractive('Setting up a project'), await newPassphrase());
-
-  const { publicRaw, privateRaw } = generateIdentity();
-  const pubkey = encodePublic(publicRaw);
-  const keyid = keyIdOf(publicRaw).toString('hex');
-  config.recipients = [...(prior?.recipients ?? []).filter((r) => r.name !== me), { name: me, keyid, pubkey }];
-
-  const blob = await sealIdentity(privateRaw, passphrase);
-
-  await provider.put({ project, kind: KIND_IDENTITY, name: keyid }, blob);
-  if (previous?.keyid && previous.keyid !== keyid) await provider.remove({ project, kind: KIND_IDENTITY, name: previous.keyid }).catch(() => {});
+  // Your identity is shared with your other projects now, so nothing here is removed from the store
+  const { keyid, pubkey } = identity;
+  config.recipients = [...(prior?.recipients ?? []).filter((r) => r.name !== me && r.keyid !== keyid), { name: me, keyid, pubkey }];
 
   const configFile = path.join(cwd, CONFIG_FILENAMES[0]);
   await writeFile(configFile, JSON.stringify(config, null, 2) + '\n');

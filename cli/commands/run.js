@@ -7,21 +7,8 @@ import { openSession, unlockIdentity } from '../../core/session.js';
 import { cyan, dim, plural } from '../lib/format.js';
 import { password } from '../lib/prompt.js';
 import { ensureSignedIn } from '../lib/signin.js';
+import { quoteForCmd } from '../lib/tool.js';
 import { command, note, warn } from '../lib/ui.js';
-
-const CMD_SPECIAL = /[\s"^&|<>()%!]/;
-
-function quoteForCmd(arg) {
-  if (!CMD_SPECIAL.test(arg)) return arg;
-
-  return (
-    '"'
-    + String(arg)
-      .replace(/(\\*)"/g, '$1$1\\"')
-      .replace(/(\\*)$/, '$1$1')
-    + '"'
-  );
-}
 
 /** Decrypt into a child process, never onto disk */
 export async function run(args) {

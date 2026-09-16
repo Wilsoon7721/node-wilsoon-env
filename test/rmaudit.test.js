@@ -89,7 +89,7 @@ describe('keys audit', () => {
   async function sealIdentityAt(params) {
     const { keyid } = (await loadConfig(dir)).config.recipients[0];
     const { privateRaw } = generateIdentity();
-    await store().put({ project: 'demo', kind: 'identity', name: keyid }, await sealIdentity(privateRaw, PASSPHRASE, params));
+    await store().put({ project: '~identities', kind: 'identity', name: keyid }, await sealIdentity(privateRaw, PASSPHRASE, params));
   }
 
   it('passes an identity sealed at the shipped parameters', async () => {

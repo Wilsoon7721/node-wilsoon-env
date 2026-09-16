@@ -14,6 +14,7 @@ const COMMANDS = {
   pull: () => import('./commands/pull.js').then((m) => m.pull),
   status: () => import('./commands/status.js').then((m) => m.status),
   run: () => import('./commands/run.js').then((m) => m.run),
+  export: () => import('./commands/export.js').then((m) => m.exportEnv),
   keys: () => import('./commands/keys.js').then((m) => m.keys),
   rm: () => import('./commands/rm.js').then((m) => m.rm),
   remove: () => import('./commands/rm.js').then((m) => m.rm),
@@ -31,6 +32,7 @@ const HELP = `
   ${cyan('pull')}      Fetch and decrypt them onto this machine
   ${cyan('status')}    Compare what is here against what is stored
   ${cyan('run')}       Decrypt into a command's environment, never onto disk
+  ${cyan('export')}    Send chosen keys to Vercel or Wrangler as secrets
   ${cyan('keys')}      List, add, issue, audit or remove recipients
   ${cyan('rm')}        Delete a file from the store
   ${cyan('login')}     Sign in to the identity provider this project uses
@@ -50,6 +52,7 @@ const HELP = `
   ${dim(`Scripting it instead? ${command('setup --unattended --help')}`)}
 
   ${dim('Run a command with specific files:')}  ${command('pull .env.production')}
+  ${dim('Send secrets to a platform:')}         ${command('export vercel --env production')}
 `;
 
 /*
@@ -165,6 +168,15 @@ async function main(argv) {
 main(process.argv.slice(2))
   .then((code) => (process.exitCode = code ?? 0))
   .catch((err) => {
+    // Stopping on purpose is not an error, so it gets no cross and the conventional exit code for Ctrl+C
+    if (err?.name === 'Cancelled') {
+      console.error('');
+      console.error(`  ${dim(err.message)}`);
+      console.error('');
+      process.exitCode = 130;
+      return;
+    }
+
     console.error('');
     console.error(`  ${red(S.bad)} ${err.message}`);
     if (process.env.WILSOON_ENV_DEBUG) console.error(err.stack);

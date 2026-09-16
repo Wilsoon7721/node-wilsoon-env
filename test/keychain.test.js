@@ -117,7 +117,7 @@ describe.skipIf(!onWindows)('keychain, on this platform', () => {
     const before = (await loadConfig(dir)).config.recipients[0].keyid;
 
     // A new identity at a new key id; the old cache entry must not be used.
-    await setup(args({ force: true, yes: true }));
+    await setup(args({ force: true, yes: true, 'new-identity': true }));
     await push(args({ yes: true }));
 
     const after = (await loadConfig(dir)).config.recipients[0].keyid;

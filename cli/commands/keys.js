@@ -4,8 +4,7 @@ import { loadConfig, schemaRef } from '../../core/config.js';
 import { unpackIdentityHeader } from '../../core/crypto/header.js';
 import { decodePublic, encodePrivate, encodePublic, generateIdentity, keyIdOf } from '../../core/crypto/identity.js';
 import { DEFAULT_KDF } from '../../core/crypto/kdf.js';
-import { KIND_IDENTITY } from '../../core/provider.js';
-import { openSession } from '../../core/session.js';
+import { openSession, storedIdentity } from '../../core/session.js';
 import { bold, cyan, dim, green, plural, red, yellow } from '../lib/format.js';
 import { ensureSignedIn } from '../lib/signin.js';
 import { command, field, heading, note, ok, outcome, warn } from '../lib/ui.js';
@@ -194,7 +193,12 @@ async function remove(session, args) {
 async function audit(session) {
   const policy = { ...DEFAULT_KDF, ...(session.config.kdf ?? {}) };
 
-  const identities = (await session.provider.list(session.project)).filter((e) => e.kind === KIND_IDENTITY);
+  // Identities are personal now and live outside the project, so they are found through the recipients
+  const identities = [];
+  for (const r of session.config.recipients) {
+    const fetched = await storedIdentity(session, r.keyid);
+    if (fetched) identities.push({ name: r.keyid, blob: fetched.blob });
+  }
 
   heading(`Identity keys for ${cyan(session.project)}`);
 
@@ -206,8 +210,7 @@ async function audit(session) {
   let weak = 0;
 
   for (const entry of identities) {
-    const fetched = await session.provider.get({ project: session.project, kind: KIND_IDENTITY, name: entry.name });
-    const params = unpackIdentityHeader(fetched.blob);
+    const params = unpackIdentityHeader(entry.blob);
 
     const memory = 2 ** params.log2m / 1024;
     const below = params.log2m < policy.log2m || params.t < policy.t;
